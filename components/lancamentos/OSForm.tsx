@@ -89,7 +89,7 @@ export function OSForm({ open, onOpenChange, order, onSuccess }: OSFormProps) {
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4 py-2">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs text-zinc-400">Número da OS</Label>
               <Input placeholder="OS3994" value={form.os_number} onChange={(e) => set("os_number", e.target.value)} required />
@@ -105,7 +105,7 @@ export function OSForm({ open, onOpenChange, order, onSuccess }: OSFormProps) {
             <Input placeholder="Nome do cliente" value={form.client_name} onChange={(e) => set("client_name", e.target.value)} required />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs text-zinc-400">Valor (R$)</Label>
               <Input placeholder="0,00" value={form.order_value} onChange={(e) => set("order_value", e.target.value)} required />

@@ -39,14 +39,14 @@ export function MetaProgress({ totalPago }: MetaProgressProps) {
   return (
     <Card className="overflow-hidden">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div className="flex items-center gap-2">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ backgroundColor: theme.bg }}>
               <Target className="h-3.5 w-3.5" style={{ color: theme.color }} />
             </div>
             <CardTitle className="text-sm">Progresso da Meta Mensal</CardTitle>
           </div>
-          <div className="text-right">
+          <div className="sm:text-right">
             <p className="text-[10px] text-zinc-600 uppercase tracking-wider">Comissão Real</p>
             <p className="font-mono text-lg font-semibold" style={{ color: theme.color }}>
               {formatCurrency(comissao)}

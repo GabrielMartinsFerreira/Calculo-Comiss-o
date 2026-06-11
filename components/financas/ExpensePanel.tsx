@@ -125,7 +125,7 @@ export function ExpensePanel({ competencia, expenses, onRefresh }: ExpensePanelP
           </span>
         </div>
 
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
           <Button variant="ghost" size="icon" className="h-6 w-6 text-zinc-600 hover:text-zinc-200"
             onClick={() => { setEditing(entry); setFormOpen(true); }}>
             <Pencil className="h-3 w-3" />
@@ -155,13 +155,13 @@ export function ExpensePanel({ competencia, expenses, onRefresh }: ExpensePanelP
               <Plus className="h-3 w-3" />Nova
             </Button>
           </div>
-          <div className="mt-2 flex items-center justify-between text-xs border-t border-zinc-800 pt-2">
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-y-1 text-xs border-t border-zinc-800 pt-2">
             <span className="text-zinc-600">
               Fixas: <span className="font-mono font-semibold text-zinc-300">{formatCurrency(totalFixed)}</span>
               <span className="ml-2 text-zinc-700">·</span>
               <span className="ml-2">Variáveis: <span className="font-mono font-semibold text-zinc-300">{formatCurrency(totalVariable)}</span></span>
             </span>
-            <span className="text-zinc-600">Pago: <span className="font-mono font-semibold text-purple-400">{formatCurrency(totalPaid)}</span></span>
+            <span className="text-zinc-600 shrink-0">Pago: <span className="font-mono font-semibold text-purple-400">{formatCurrency(totalPaid)}</span></span>
           </div>
           <p className="text-[10px] text-zinc-700 mt-1">Clique no indicador colorido para alternar status (Pendente → Pago → Aguardando)</p>
         </CardHeader>
@@ -187,11 +187,10 @@ export function ExpensePanel({ competencia, expenses, onRefresh }: ExpensePanelP
           {/* ── Fatura do Cartão de Crédito ── */}
           {ccExpenses.length > 0 && (
             <div className="space-y-1.5">
-              <div className="flex items-center gap-2 pt-1">
-                <CreditCard className="h-3.5 w-3.5 text-orange-400" />
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-1">
+                <CreditCard className="h-3.5 w-3.5 text-orange-400 shrink-0" />
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-orange-400/80">Fatura do Cartão</p>
-                <div className="flex-1 h-px bg-orange-500/10" />
-                <div className="flex items-center gap-3 text-[10px] font-mono">
+                <div className="flex items-center gap-3 text-[10px] font-mono ml-auto">
                   {ccBill > 0 && (
                     <span className="text-emerald-500">Pago: {formatCurrency(ccBill)}</span>
                   )}

@@ -198,7 +198,7 @@ export function EntryFormModal({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs text-zinc-400">
                     Valor da Parcela (R$) <span className="text-orange-400">*</span>
@@ -228,7 +228,7 @@ export function EntryFormModal({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 items-end">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
                 <div className="space-y-1.5">
                   <Label className="text-xs text-zinc-400">Dia de Vencimento</Label>
                   <Input
@@ -289,7 +289,7 @@ export function EntryFormModal({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs text-zinc-400">Tipo</Label>
                   <Select value={form.type} onValueChange={v => set("type", v)}>
@@ -311,7 +311,7 @@ export function EntryFormModal({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {isIncome ? (
                   <div className="space-y-1.5">
                     <Label className="text-xs text-zinc-400">Quando recebe</Label>

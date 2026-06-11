@@ -237,7 +237,7 @@ export function IncomePanel({ competencia, incomes, onRefresh }: IncomePanelProp
                     </Badge>
                   </div>
 
-                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
+                  <div className="flex items-center gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity mt-0.5">
                     {/* Empréstimos não têm edição direta */}
                     {!isLoanEntry && (
                       <Button

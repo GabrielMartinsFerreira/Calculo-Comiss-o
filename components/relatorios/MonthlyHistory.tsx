@@ -36,29 +36,31 @@ export function MonthlyHistory({ data }: MonthlyHistoryProps) {
               return (
                 <div
                   key={month.competencia}
-                  className="group flex items-center justify-between gap-4 rounded-lg border border-zinc-800/60 bg-zinc-900/30 p-4 transition-all duration-200 hover:border-zinc-700/60 hover:bg-zinc-800/30"
+                  className="group flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 rounded-lg border border-zinc-800/60 bg-zinc-900/30 p-4 transition-all duration-200 hover:border-zinc-700/60 hover:bg-zinc-800/30"
                 >
-                  {/* Accent line */}
-                  <div className="h-10 w-0.5 rounded-full shrink-0" style={{ backgroundColor: color, opacity: 0.6 }} />
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-semibold text-zinc-200 capitalize">
-                        {formatMonthYear(month.competencia)}
+                  {/* Top row: accent line + month info */}
+                  <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+                    <div className="h-10 w-0.5 rounded-full shrink-0" style={{ backgroundColor: color, opacity: 0.6 }} />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-semibold text-zinc-200 capitalize">
+                          {formatMonthYear(month.competencia)}
+                        </p>
+                        <span
+                          className="rounded px-1.5 py-0.5 text-[10px] font-semibold font-mono border"
+                          style={{ color, borderColor: `${color}30`, backgroundColor: `${color}10` }}
+                        >
+                          {bracket.label} · {(bracket.rate * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-[11px] text-zinc-600 font-mono">
+                        {month.count_pago} pagas · {month.count_pendente} pendentes
                       </p>
-                      <span
-                        className="rounded px-1.5 py-0.5 text-[10px] font-semibold font-mono border"
-                        style={{ color, borderColor: `${color}30`, backgroundColor: `${color}10` }}
-                      >
-                        {bracket.label} · {(bracket.rate * 100).toFixed(1)}%
-                      </span>
                     </div>
-                    <p className="mt-0.5 text-[11px] text-zinc-600 font-mono">
-                      {month.count_pago} pagas · {month.count_pendente} pendentes
-                    </p>
                   </div>
 
-                  <div className="flex items-center gap-6 shrink-0">
+                  {/* Values row: wraps on mobile */}
+                  <div className="flex items-center gap-4 sm:gap-6 pl-4 sm:pl-0 flex-wrap">
                     <div className="text-right">
                       <p className="text-[10px] text-zinc-600 uppercase tracking-wider">Total Pago</p>
                       <p className="font-mono text-sm font-semibold text-emerald-400">
@@ -72,7 +74,7 @@ export function MonthlyHistory({ data }: MonthlyHistoryProps) {
                       </p>
                     </div>
                     {delta !== null && (
-                      <div className="w-20 text-right">
+                      <div className="text-right">
                         {delta > 0 ? (
                           <span className="flex items-center justify-end gap-0.5 text-xs text-emerald-400 font-mono">
                             <TrendingUp className="h-3 w-3" />+{formatCurrency(delta)}

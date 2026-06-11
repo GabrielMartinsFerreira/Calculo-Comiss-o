@@ -44,7 +44,7 @@ export function RecentOrders({ orders }: RecentOrdersProps) {
                   <p className="truncate text-[11px] text-zinc-600">{order.client_name} · {formatDate(order.order_date)}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <span className={`rounded border px-1.5 py-0.5 text-[10px] font-medium ${methodBadge[order.payment_method] ?? ""}`}>
+                  <span className={`hidden sm:inline rounded border px-1.5 py-0.5 text-[10px] font-medium ${methodBadge[order.payment_method] ?? ""}`}>
                     {order.payment_method}
                   </span>
                   <Badge variant={order.status === "Pago" ? "success" : "warning"} pulse={order.status === "Pendente"}>
