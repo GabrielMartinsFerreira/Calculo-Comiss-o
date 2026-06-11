@@ -92,12 +92,83 @@ export function OSTable({ orders, onEdit, onRefresh }: OSTableProps) {
         />
       </div>
 
-      <div className="rounded-xl border border-zinc-800/60 overflow-x-auto">
+      {/* Mobile: card list */}
+      <div className="sm:hidden space-y-2">
+        {paginated.length === 0 ? (
+          <p className="py-12 text-center text-sm text-zinc-600">Nenhuma OS encontrada.</p>
+        ) : (
+          paginated.map((order) => (
+            <div
+              key={order.id}
+              className="rounded-xl border border-zinc-800/50 bg-zinc-900/30 px-3 py-2.5 transition-all hover:border-zinc-700/60 hover:bg-zinc-800/30"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-mono text-xs font-semibold text-cyan-400">{order.os_number}</span>
+                <span className="font-mono text-sm font-semibold text-zinc-100">{formatCurrency(order.order_value)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-2 mt-1.5">
+                <span className="text-sm text-zinc-300 truncate">{order.client_name}</span>
+                <Badge variant={order.status === "Pago" ? "success" : "warning"} pulse={order.status === "Pendente"}>
+                  {order.status}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between mt-2 pt-2 border-t border-zinc-800/40">
+                <span className="font-mono text-[11px] text-zinc-600">{formatDate(order.order_date)}</span>
+                <div className="flex items-center gap-0.5">
+                  {order.status === "Pendente" && (
+                    <Button
+                      variant="ghost" size="icon"
+                      className="h-7 w-7 text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10"
+                      onClick={() => handleConfirm(order.id)}
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost" size="icon"
+                    className="h-7 w-7 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700/50"
+                    onClick={() => onEdit(order)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-zinc-600 hover:text-red-400 hover:bg-red-500/10">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent className="bg-zinc-900 border-zinc-800">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle className="text-zinc-100">Excluir {order.os_number}?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-zinc-500">
+                          Esta ação não pode ser desfeita. A OS de {formatCurrency(order.order_value)} para {order.client_name} será removida permanentemente.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel className="border-zinc-700 bg-transparent text-zinc-400 hover:bg-zinc-800">Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          className="bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20"
+                          onClick={() => handleDelete(order.id)}
+                        >
+                          Excluir
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop: table */}
+      <div className="hidden sm:block rounded-xl border border-zinc-800/60 overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-zinc-800/60 bg-zinc-900/50">
               {(["order_date", "os_number", "client_name", "order_value", "status"] as SortKey[]).map((col) => (
-                <th key={col} className="px-2 sm:px-4 py-3 text-left">
+                <th key={col} className="px-4 py-3 text-left">
                   <button
                     onClick={() => handleSort(col)}
                     className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-600 hover:text-zinc-300 transition-colors"
@@ -111,8 +182,8 @@ export function OSTable({ orders, onEdit, onRefresh }: OSTableProps) {
                   </button>
                 </th>
               ))}
-              <th className="hidden sm:table-cell px-2 sm:px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-zinc-600">Método</th>
-              <th className="px-2 sm:px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-zinc-600">Ações</th>
+              <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-zinc-600">Método</th>
+              <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-zinc-600">Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -129,31 +200,29 @@ export function OSTable({ orders, onEdit, onRefresh }: OSTableProps) {
                   className="group border-b border-zinc-800/30 transition-all duration-150 hover:bg-zinc-800/30 hover:border-zinc-700/40"
                   style={{ backgroundColor: i % 2 === 0 ? "transparent" : "rgba(24,24,27,0.2)" }}
                 >
-                  <td className="whitespace-nowrap px-2 sm:px-4 py-3 text-xs text-zinc-500 font-mono">{formatDate(order.order_date)}</td>
-                  <td className="whitespace-nowrap px-2 sm:px-4 py-3">
+                  <td className="whitespace-nowrap px-4 py-3 text-xs text-zinc-500 font-mono">{formatDate(order.order_date)}</td>
+                  <td className="whitespace-nowrap px-4 py-3">
                     <span className="font-mono text-xs font-semibold text-cyan-400">{order.os_number}</span>
                   </td>
-                  <td className="px-2 sm:px-4 py-3 text-sm text-zinc-300">{order.client_name}</td>
-                  <td className="whitespace-nowrap px-2 sm:px-4 py-3">
+                  <td className="px-4 py-3 text-sm text-zinc-300">{order.client_name}</td>
+                  <td className="whitespace-nowrap px-4 py-3">
                     <span className="font-mono text-sm font-semibold text-zinc-100">{formatCurrency(order.order_value)}</span>
                   </td>
-                  <td className="px-2 sm:px-4 py-3">
+                  <td className="px-4 py-3">
                     <Badge variant={order.status === "Pago" ? "success" : "warning"} pulse={order.status === "Pendente"}>
                       {order.status}
                     </Badge>
                   </td>
-                  <td className="hidden sm:table-cell px-2 sm:px-4 py-3">
+                  <td className="px-4 py-3">
                     <span className={`rounded border px-1.5 py-0.5 text-[10px] font-medium ${methodStyle[order.payment_method] ?? ""}`}>
                       {order.payment_method}
                     </span>
                   </td>
-                  <td className="px-2 sm:px-4 py-3">
-                    <div className="flex items-center justify-end gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                       {order.status === "Pendente" && (
                         <Button
-                          variant="ghost"
-                          size="icon"
-                          title="Confirmar pagamento"
+                          variant="ghost" size="icon" title="Confirmar pagamento"
                           onClick={() => handleConfirm(order.id)}
                           className="h-7 w-7 text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10"
                         >
@@ -161,9 +230,7 @@ export function OSTable({ orders, onEdit, onRefresh }: OSTableProps) {
                         </Button>
                       )}
                       <Button
-                        variant="ghost"
-                        size="icon"
-                        title="Editar"
+                        variant="ghost" size="icon" title="Editar"
                         onClick={() => onEdit(order)}
                         className="h-7 w-7 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700/50"
                       >
@@ -171,12 +238,7 @@ export function OSTable({ orders, onEdit, onRefresh }: OSTableProps) {
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Excluir"
-                            className="h-7 w-7 text-zinc-600 hover:text-red-400 hover:bg-red-500/10"
-                          >
+                          <Button variant="ghost" size="icon" title="Excluir" className="h-7 w-7 text-zinc-600 hover:text-red-400 hover:bg-red-500/10">
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </AlertDialogTrigger>

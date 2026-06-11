@@ -97,7 +97,7 @@ export function ExpensePanel({ competencia, expenses, onRefresh }: ExpensePanelP
         </button>
 
         {entry.due_day && (
-          <span className="font-mono text-[10px] text-zinc-700 shrink-0 w-8">d.{entry.due_day}</span>
+          <span className="hidden sm:inline font-mono text-[10px] text-zinc-700 shrink-0 w-8">d.{entry.due_day}</span>
         )}
 
         <div className="min-w-0 flex-1">
