@@ -1,50 +1,28 @@
-import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request });
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
-          supabaseResponse = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          );
-        },
-      },
-    }
-  );
-
-  // getSession() lê o JWT do cookie sem chamada de rede — compatível com Edge Runtime
-  const { data: { session } } = await supabase.auth.getSession();
-
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isLoginPage = pathname === "/login";
 
-  if (!session && !isLoginPage) {
+  // Verifica se existe cookie de sessão Supabase (sb-*-auth-token ou chunks sb-*-auth-token.0)
+  const hasSession = request.cookies.getAll().some(
+    c => c.name.match(/^sb-.+-auth-token/) && c.value
+  );
+
+  if (!hasSession && !isLoginPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  if (session && isLoginPage) {
+  if (hasSession && isLoginPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url);
   }
 
-  return supabaseResponse;
+  return NextResponse.next();
 }
 
 export const config = {
