@@ -36,15 +36,19 @@ export function Sidebar({ user }: SidebarProps) {
   return (
     <aside className="fixed inset-y-0 left-0 z-20 flex w-64 flex-col border-r border-zinc-800/60 bg-[rgba(9,9,11,0.95)] backdrop-blur-xl">
       {/* Logo */}
-      <div className="flex h-16 items-center border-b border-zinc-800/60 px-4">
+      <div className="flex h-16 items-center gap-3 border-b border-zinc-800/60 px-4">
         <Image
           src="/logo.png"
           alt="GG Tech"
-          width={180}
-          height={48}
-          className="object-contain h-10 w-auto"
+          width={120}
+          height={36}
+          className="object-contain h-8 w-auto shrink-0"
           priority
         />
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-zinc-100 leading-none truncate">Gabriel</p>
+          <p className="text-[11px] text-cyan-500/80 font-mono mt-0.5 leading-none">Comissão · 2026</p>
+        </div>
       </div>
 
       {/* Nav */}
