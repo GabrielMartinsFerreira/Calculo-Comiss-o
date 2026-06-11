@@ -18,8 +18,16 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createSupabaseServer();
-  const { data: { user } } = await supabase.auth.getUser();
+  // Nunca deixar a verificação de auth crashar o layout inteiro.
+  // O ConditionalLayout já reconcilia o user no cliente via onAuthStateChange.
+  let user = null;
+  try {
+    const supabase = await createSupabaseServer();
+    const result = await supabase.auth.getUser();
+    user = result.data.user;
+  } catch {
+    user = null;
+  }
 
   return (
     <html lang="pt-BR" className="dark">
