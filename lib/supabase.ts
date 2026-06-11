@@ -1,8 +1,9 @@
 import { createBrowserClient } from "@supabase/ssr";
 import type { ServiceOrder, ServiceOrderInsert, ServiceOrderUpdate } from "./types";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+// Trim defende contra espaços/quebras de linha coladas por engano no painel do Vercel
+const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim();
+const supabaseAnonKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "").trim();
 
 export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
 
