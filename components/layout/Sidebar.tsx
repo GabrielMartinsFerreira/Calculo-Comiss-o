@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, FileText, BarChart2, Zap, Wallet, LogOut, User as UserIcon } from "lucide-react";
+import { LayoutDashboard, FileText, BarChart2, Wallet, LogOut, User as UserIcon } from "lucide-react";
+import Image from "next/image";
 import type { User } from "@supabase/supabase-js";
 import { cn } from "@/lib/utils";
 import { signOut } from "@/lib/supabase";
@@ -35,14 +36,15 @@ export function Sidebar({ user }: SidebarProps) {
   return (
     <aside className="fixed inset-y-0 left-0 z-20 flex w-64 flex-col border-r border-zinc-800/60 bg-[rgba(9,9,11,0.95)] backdrop-blur-xl">
       {/* Logo */}
-      <div className="flex h-16 items-center gap-3 border-b border-zinc-800/60 px-6">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500/10 border border-cyan-500/30">
-          <Zap className="h-4 w-4 text-cyan-400" />
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-zinc-100 leading-none">Comissão</p>
-          <p className="text-[11px] text-cyan-500/80 font-mono mt-0.5 leading-none">Comercial · 2026</p>
-        </div>
+      <div className="flex h-16 items-center border-b border-zinc-800/60 px-4">
+        <Image
+          src="/logo.png"
+          alt="GG Tech"
+          width={180}
+          height={48}
+          className="object-contain h-10 w-auto"
+          priority
+        />
       </div>
 
       {/* Nav */}

@@ -13,8 +13,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Comissão Comercial",
-  description: "Sistema de controle de comissionamento comercial",
+  title: "GG Tech | Controle Financeiro",
+  description: "Sistema de controle de comissionamento comercial — GG Tech",
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

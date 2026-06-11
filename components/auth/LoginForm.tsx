@@ -1,7 +1,8 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Zap, Lock, Mail } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail } from "lucide-react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,15 +42,19 @@ export function LoginForm() {
       className="w-full max-w-md"
     >
       {/* Logo */}
-      <div className="mb-8 flex flex-col items-center gap-3">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-cyan-500/10 border border-cyan-500/30 shadow-neon-cyan">
-          <Zap className="h-7 w-7 text-cyan-400" />
-        </div>
+      <div className="mb-8 flex flex-col items-center gap-4">
+        <Image
+          src="/logo.png"
+          alt="GG Tech - Controle Financeiro"
+          width={260}
+          height={80}
+          className="object-contain"
+          priority
+        />
         <div className="text-center">
           <p className="text-[11px] font-mono text-cyan-500/70 uppercase tracking-widest">
             // acesso ao sistema
           </p>
-          <h1 className="text-2xl font-bold text-zinc-100 mt-1">Comissão Comercial</h1>
           <p className="text-sm text-zinc-600 mt-0.5">Introduza as suas credenciais</p>
         </div>
       </div>
