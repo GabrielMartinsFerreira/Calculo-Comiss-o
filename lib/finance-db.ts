@@ -279,7 +279,7 @@ export async function initializeMonth(competencia: string): Promise<{ incomes: n
     newIncomes = recurringIncomes
       .filter((i: { description: string; is_commission: boolean }) =>
         !existingIncDescriptions.has(i.description) && !seenInc.has(i.description) && !seenInc.add(i.description))
-      .map(({ id: _id, created_at: _ca, updated_at: _ua, competencia: _c, loan_id: _l, ...rest }: Record<string, unknown>) => ({
+      .map(({ id: _id, created_at: _ca, updated_at: _ua, competencia: _c, loan_id: _l, user_id: _u, ...rest }: Record<string, unknown>) => ({
         ...rest, competencia, status: "Pendente",
         amount: rest.is_commission ? 0 : rest.amount,
       }));
@@ -296,7 +296,7 @@ export async function initializeMonth(competencia: string): Promise<{ incomes: n
     newExpenses = recurringExpenses
       .filter((e: { description: string }) =>
         !existingExpDescriptions.has(e.description) && !seenExp.has(e.description) && !seenExp.add(e.description))
-      .map(({ id: _id, created_at: _ca, updated_at: _ua, competencia: _c, ...rest }: Record<string, unknown>) => ({
+      .map(({ id: _id, created_at: _ca, updated_at: _ua, competencia: _c, user_id: _u, ...rest }: Record<string, unknown>) => ({
         ...rest, competencia, status: "Pendente",
       }));
   } else {
