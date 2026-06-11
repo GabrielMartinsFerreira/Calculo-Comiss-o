@@ -2,8 +2,6 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export const runtime = "nodejs";
-
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -28,19 +26,19 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // getUser() valida o JWT no servidor — não usar getSession() aqui
-  const { data: { user } } = await supabase.auth.getUser();
+  // getSession() lê o JWT do cookie sem chamada de rede — compatível com Edge Runtime
+  const { data: { session } } = await supabase.auth.getSession();
 
   const { pathname } = request.nextUrl;
   const isLoginPage = pathname === "/login";
 
-  if (!user && !isLoginPage) {
+  if (!session && !isLoginPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  if (user && isLoginPage) {
+  if (session && isLoginPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url);
