@@ -96,7 +96,7 @@ export default function FinancasPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Select value={competencia} onValueChange={setCompetencia}>
-            <SelectTrigger className="w-48 bg-zinc-900/80 border-zinc-700 text-zinc-300 h-9">
+            <SelectTrigger className="w-full sm:w-48 bg-zinc-900/80 border-zinc-700 text-zinc-300 h-9">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-zinc-900 border-zinc-800">

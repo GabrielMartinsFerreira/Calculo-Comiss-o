@@ -31,3 +31,13 @@ yarn-error.log*
 
 # Vercel
 .vercel
+
+# PWA — gerados automaticamente pelo next-pwa
+public/sw.js
+public/sw.js.map
+public/workbox-*.js
+public/workbox-*.js.map
+public/swe-worker-*.js
+
+# Capacitor — pasta Android gerada localmente (criar com: npm run cap:add)
+android/

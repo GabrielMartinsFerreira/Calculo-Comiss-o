@@ -44,14 +44,14 @@ export default function LancamentosPage() {
 
   return (
     <div className="space-y-6 animate-slide-in">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <p className="text-[11px] font-mono text-cyan-500/70 uppercase tracking-widest mb-1">// ordens de serviço</p>
           <h1 className="text-2xl font-bold text-zinc-100 leading-none">Lançamentos</h1>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Select value={competencia} onValueChange={setCompetencia}>
-            <SelectTrigger className="w-48 bg-zinc-900/80 border-zinc-700 text-zinc-300 h-9">
+            <SelectTrigger className="w-full sm:w-48 bg-zinc-900/80 border-zinc-700 text-zinc-300 h-9">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-zinc-900 border-zinc-800">

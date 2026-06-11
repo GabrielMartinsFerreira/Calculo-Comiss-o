@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { Sidebar } from "./Sidebar";
+import { BottomNav } from "./BottomNav";
 
 interface ConditionalLayoutProps {
   children: React.ReactNode;
@@ -50,10 +51,16 @@ export function ConditionalLayout({ children, initialUser }: ConditionalLayoutPr
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar user={user} />
-      <main className="flex-1 pl-64 min-h-screen scrollbar-dark">
-        <div className="p-8">{children}</div>
+      {/* Sidebar: visível apenas em desktop (md+) */}
+      <div className="hidden md:flex">
+        <Sidebar user={user} />
+      </div>
+      {/* Conteúdo: sem padding-left em mobile, com padding-left no desktop */}
+      <main className="flex-1 pl-0 md:pl-64 min-h-screen pb-20 md:pb-0 scrollbar-dark">
+        <div className="p-4 md:p-8">{children}</div>
       </main>
+      {/* Bottom nav: visível apenas em mobile */}
+      <BottomNav user={user} />
     </div>
   );
 }

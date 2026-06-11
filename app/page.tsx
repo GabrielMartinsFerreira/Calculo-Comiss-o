@@ -35,14 +35,14 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 animate-slide-in">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <p className="text-[11px] font-mono text-cyan-500/70 uppercase tracking-widest mb-1">// painel</p>
           <h1 className="text-2xl font-bold text-zinc-100 leading-none">Dashboard</h1>
           <p className="mt-1 text-sm text-zinc-600 capitalize">{formatMonthYear(competencia)}</p>
         </div>
         <Select value={competencia} onValueChange={setCompetencia}>
-          <SelectTrigger className="w-48 bg-zinc-900/80 border-zinc-700 text-zinc-300 h-9">
+          <SelectTrigger className="w-full sm:w-48 bg-zinc-900/80 border-zinc-700 text-zinc-300 h-9">
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="bg-zinc-900 border-zinc-800">

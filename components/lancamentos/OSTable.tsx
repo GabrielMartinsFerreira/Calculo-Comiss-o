@@ -97,7 +97,7 @@ export function OSTable({ orders, onEdit, onRefresh }: OSTableProps) {
           <thead>
             <tr className="border-b border-zinc-800/60 bg-zinc-900/50">
               {(["order_date", "os_number", "client_name", "order_value", "status"] as SortKey[]).map((col) => (
-                <th key={col} className="px-4 py-3 text-left">
+                <th key={col} className="px-2 sm:px-4 py-3 text-left">
                   <button
                     onClick={() => handleSort(col)}
                     className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-600 hover:text-zinc-300 transition-colors"
@@ -111,8 +111,8 @@ export function OSTable({ orders, onEdit, onRefresh }: OSTableProps) {
                   </button>
                 </th>
               ))}
-              <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-zinc-600">Método</th>
-              <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-zinc-600">Ações</th>
+              <th className="hidden sm:table-cell px-2 sm:px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-zinc-600">Método</th>
+              <th className="px-2 sm:px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-zinc-600">Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -129,26 +129,26 @@ export function OSTable({ orders, onEdit, onRefresh }: OSTableProps) {
                   className="group border-b border-zinc-800/30 transition-all duration-150 hover:bg-zinc-800/30 hover:border-zinc-700/40"
                   style={{ backgroundColor: i % 2 === 0 ? "transparent" : "rgba(24,24,27,0.2)" }}
                 >
-                  <td className="whitespace-nowrap px-4 py-3 text-xs text-zinc-500 font-mono">{formatDate(order.order_date)}</td>
-                  <td className="whitespace-nowrap px-4 py-3">
+                  <td className="whitespace-nowrap px-2 sm:px-4 py-3 text-xs text-zinc-500 font-mono">{formatDate(order.order_date)}</td>
+                  <td className="whitespace-nowrap px-2 sm:px-4 py-3">
                     <span className="font-mono text-xs font-semibold text-cyan-400">{order.os_number}</span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-zinc-300">{order.client_name}</td>
-                  <td className="whitespace-nowrap px-4 py-3">
+                  <td className="px-2 sm:px-4 py-3 text-sm text-zinc-300">{order.client_name}</td>
+                  <td className="whitespace-nowrap px-2 sm:px-4 py-3">
                     <span className="font-mono text-sm font-semibold text-zinc-100">{formatCurrency(order.order_value)}</span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-2 sm:px-4 py-3">
                     <Badge variant={order.status === "Pago" ? "success" : "warning"} pulse={order.status === "Pendente"}>
                       {order.status}
                     </Badge>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="hidden sm:table-cell px-2 sm:px-4 py-3">
                     <span className={`rounded border px-1.5 py-0.5 text-[10px] font-medium ${methodStyle[order.payment_method] ?? ""}`}>
                       {order.payment_method}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <td className="px-2 sm:px-4 py-3">
+                    <div className="flex items-center justify-end gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                       {order.status === "Pendente" && (
                         <Button
                           variant="ghost"

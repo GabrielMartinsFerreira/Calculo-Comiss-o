@@ -36,7 +36,7 @@ function KPICard({ title, value, sub, icon: Icon, accentColor, glowColor, border
         <div className="min-w-0 flex-1">
           <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">{title}</p>
           <p
-            className="mt-2 font-mono text-2xl font-semibold leading-none tracking-tight"
+            className="mt-2 font-mono text-xl sm:text-2xl font-semibold leading-none tracking-tight"
             style={{ color: accentColor }}
           >
             {value}
