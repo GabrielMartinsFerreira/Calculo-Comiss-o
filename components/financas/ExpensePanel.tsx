@@ -118,7 +118,7 @@ export function ExpensePanel({ competencia, expenses, onRefresh }: ExpensePanelP
         <div className="flex shrink-0 items-center gap-2">
           <span className="font-mono text-xs font-semibold text-zinc-200">{formatCurrency(entry.amount)}</span>
           <span
-            className="rounded border px-1.5 py-0.5 text-[9px] font-semibold"
+            className="hidden sm:inline rounded border px-1.5 py-0.5 text-[9px] font-semibold"
             style={{ color: s.color, borderColor: s.border, backgroundColor: s.bg }}
           >
             {entry.status}

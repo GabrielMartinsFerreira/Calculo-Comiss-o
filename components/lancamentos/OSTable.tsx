@@ -82,7 +82,7 @@ export function OSTable({ orders, onEdit, onRefresh }: OSTableProps) {
 
   return (
     <div className="space-y-3">
-      <div className="relative max-w-sm">
+      <div className="relative w-full sm:max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-600" />
         <Input
           placeholder="Buscar por OS, cliente..."

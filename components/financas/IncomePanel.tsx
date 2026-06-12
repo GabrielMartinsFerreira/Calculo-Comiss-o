@@ -223,7 +223,7 @@ export function IncomePanel({ competencia, incomes, onRefresh }: IncomePanelProp
                   </div>
 
                   <div className="flex shrink-0 items-center gap-2">
-                    <span className={`text-[10px] font-medium ${categoryColor[entry.category] ?? "text-zinc-500"}`}>
+                    <span className={`hidden sm:inline text-[10px] font-medium ${categoryColor[entry.category] ?? "text-zinc-500"}`}>
                       {entry.category}
                     </span>
                     <span className="font-mono text-xs font-semibold text-emerald-400">
@@ -231,7 +231,7 @@ export function IncomePanel({ competencia, incomes, onRefresh }: IncomePanelProp
                     </span>
                     <Badge
                       variant={statusStyle[entry.status].variant}
-                      className="text-[9px] px-1.5 py-0.5 h-fit"
+                      className="hidden sm:inline-flex text-[9px] px-1.5 py-0.5 h-fit"
                     >
                       {isQuitado ? "Quitado" : entry.status}
                     </Badge>
