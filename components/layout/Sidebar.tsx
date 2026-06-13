@@ -1,19 +1,14 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, FileText, BarChart2, Wallet, LogOut, User as UserIcon } from "lucide-react";
+import { LogOut } from "lucide-react";
 import Image from "next/image";
 import type { User } from "@supabase/supabase-js";
 import { cn } from "@/lib/utils";
 import { signOut } from "@/lib/supabase";
 import { toast } from "@/lib/use-toast";
-
-const navItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/lancamentos", label: "Lançamentos", icon: FileText },
-  { href: "/relatorios", label: "Relatórios", icon: BarChart2 },
-  { href: "/financas", label: "Finanças", icon: Wallet },
-];
+import { MODULES } from "@/lib/modules";
+import { useModulePrefs } from "./ModulePrefsContext";
 
 interface SidebarProps {
   user: User | null;
@@ -22,6 +17,13 @@ interface SidebarProps {
 export function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+
+  const { isEnabled } = useModulePrefs();
+  const visibleModules = MODULES.filter((m) => isEnabled(m.key));
+
+  // Nome do utilizador logado: full_name do metadata → username do e-mail → fallback
+  const fullName = (user?.user_metadata?.full_name as string | undefined)?.trim();
+  const displayName = fullName || user?.email?.split("@")[0] || "Utilizador";
 
   async function handleLogout() {
     try {
@@ -46,8 +48,10 @@ export function Sidebar({ user }: SidebarProps) {
           priority
         />
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-zinc-100 leading-none truncate">Gabriel</p>
-          <p className="text-[11px] text-cyan-500/80 font-mono mt-0.5 leading-none">Comissão · 2026</p>
+          <p className="text-sm font-semibold text-zinc-100 leading-none truncate">{displayName}</p>
+          {user?.email && (
+            <p className="text-[11px] text-cyan-500/80 font-mono mt-0.5 leading-none truncate">{user.email}</p>
+          )}
         </div>
       </div>
 
@@ -56,7 +60,7 @@ export function Sidebar({ user }: SidebarProps) {
         <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
           Menu
         </p>
-        {navItems.map(({ href, label, icon: Icon }) => {
+        {visibleModules.map(({ href, label, icon: Icon }) => {
           const active = pathname === href;
           return (
             <Link
@@ -82,14 +86,6 @@ export function Sidebar({ user }: SidebarProps) {
 
       {/* User + Logout */}
       <div className="border-t border-zinc-800/60 p-4 space-y-2">
-        {user && (
-          <div className="rounded-lg bg-zinc-900/50 border border-zinc-800 px-3 py-2.5 flex items-center gap-2.5">
-            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cyan-500/10 border border-cyan-500/20">
-              <UserIcon className="h-3 w-3 text-cyan-400" />
-            </div>
-            <p className="text-[11px] text-zinc-500 font-mono truncate flex-1">{user.email}</p>
-          </div>
-        )}
         <div className="rounded-lg bg-zinc-900/50 border border-zinc-800 p-3">
           <div className="flex items-center gap-1.5">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#10b981] animate-pulse" />

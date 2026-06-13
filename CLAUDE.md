@@ -26,9 +26,10 @@ Aplicação web para controle e cálculo de comissões comerciais mensais, com m
 | `lib/supabase.ts` | `createBrowserClient` + funções `signIn`, `signOut`, `getUser` |
 | `lib/subscription.ts` | **PURO (edge-safe)** — `isSubscriptionActive`, `isProtectedPath`, `describeSubscription` |
 | `lib/subscription-db.ts` | `getMySubscription()` — acesso à tabela (importa o cliente; **não** usar no middleware) |
-| `components/auth/LoginForm.tsx` | Formulário Email/Password com "Lembrar-me" |
+| `components/auth/LoginForm.tsx` | Login **e cadastro** (alterna Entrar/Criar conta) com "Lembrar-me" |
 | `app/login/page.tsx` | Página pública sem sidebar |
 | `app/checkout/page.tsx` | Página de cobrança — destino do gate de assinatura |
+| `app/configuracoes/page.tsx` | Configurações de Módulos (toggles do menu) |
 | `components/layout/ConditionalLayout.tsx` | Renderiza Sidebar/BottomNav só fora de `/login`; verifica `remember_me` no mount |
 | `app/layout.tsx` | Server Component async — obtém `initialUser` via `createSupabaseServer()` |
 
@@ -43,10 +44,17 @@ O `middleware.ts` faz dois níveis de verificação:
 - O Dashboard (`/`) fica fora do gate de propósito (funciona como vitrine).
 - ⚠️ `lib/subscription.ts` é importado pelo middleware (Edge) — manter **sem** importar o cliente Supabase.
 
+### Cadastro (Sign Up)
+- `LoginForm` alterna entre **Entrar** e **Criar conta** (estado `mode`). No cadastro pede **Nome Completo, E-mail e Senha**.
+- `signUp()` em `lib/supabase.ts` chama `supabase.auth.signUp` com `options.data.full_name` → grava o nome em **`user_metadata`** (sem tabela de perfil).
+- A migração `007` tem o trigger `handle_new_user_subscription()` que dá **14 dias de trial** a cada novo cadastro.
+- Se a confirmação de e-mail estiver ativa no Supabase, `signUp` devolve `needsConfirmation = true` (não há sessão imediata) → a UI pede para confirmar o e-mail. Caso contrário, entra direto.
+
 ### "Lembrar-me"
 - `rememberMe = true` → `localStorage.setItem("remember_me", "true")`
 - `rememberMe = false` → `sessionStorage.setItem("session_only", "active")`
 - `ConditionalLayout` no mount: se nenhuma flag existir, faz signOut (nova janela de browser sem "lembrar").
+- O **nome no topo da Sidebar é dinâmico**: `user.user_metadata.full_name` → username do e-mail → "Utilizador" (sem nome/ano fixos).
 
 ### Row Level Security (RLS)
 **REGRA CRÍTICA: Nunca desativar o RLS. Todas as tabelas DEVEM ter políticas RLS ativas.**
@@ -164,9 +172,21 @@ Sempre usar o componente `Badge` com `pulse={true}` para status **Pendente**:
 
 ### BottomNav (`components/layout/BottomNav.tsx`)
 Barra de navegação inferior, visível apenas em mobile (`md:hidden`):
-- 4 links de navegação: Dashboard, Lançamentos, Relatórios, Finanças
-- 1 botão de logout
+- Links de navegação **filtrados pelos módulos ativos** (ver Configurações de Módulos) + botão de logout
+- `flex-1` + `min-w-0` + `truncate` em cada item → nunca há scroll horizontal, mesmo com 6 itens
 - Ícone ativo: `text-cyan-400` + indicador `h-0.5 w-8 bg-cyan-400` no topo
+
+### Configurações de Módulos (`/configuracoes`)
+Permite ao utilizador escolher quais módulos aparecem no menu (experiência modular por cliente).
+| Peça | Papel |
+|------|-------|
+| `lib/modules.ts` | Fonte única dos módulos (`MODULES`): key, href, label, icon, `toggleable` |
+| `components/layout/ModulePrefsContext.tsx` | `ModulePrefsProvider` + `useModulePrefs()` — guarda prefs em `localStorage` por `user.id` |
+| `app/configuracoes/page.tsx` | Página com switches por módulo |
+| `Sidebar` / `BottomNav` | Consomem `isEnabled(key)` e ocultam módulos desativados em tempo real |
+
+- **Dashboard** e **Configurações** têm `toggleable: false` (sempre visíveis). Lançamentos, Relatórios e Finanças são ativáveis.
+- Preferência de **UI** (não dado de negócio): fica no dispositivo via `localStorage` (`module_prefs_<userId>`), evitando flicker e round-trip ao banco. O `ModulePrefsProvider` envolve a árvore em `ConditionalLayout`.
 
 ### Padrões de responsividade adotados
 | Padrão | Uso |
@@ -470,14 +490,18 @@ A comissão "prevista" considera todas as OS. A "real" considera apenas as `stat
 │   ├── lancamentos/page.tsx          # CRUD de Ordens de Serviço
 │   ├── relatorios/page.tsx           # Gráficos e histórico mensal
 │   ├── financas/page.tsx             # Gestão financeira pessoal
-│   └── login/page.tsx                # Página pública sem sidebar
+│   ├── configuracoes/page.tsx        # Configurações de Módulos (toggles do menu)
+│   ├── checkout/page.tsx             # Gestão de plano / assinatura (Stripe)
+│   ├── api/                          # Rotas server: checkout, webhooks/stripe, portal
+│   └── login/page.tsx                # Página pública (login + cadastro)
 ├── components/
 │   ├── auth/
 │   │   └── LoginForm.tsx             # Formulário Email/Password + "Lembrar-me"
 │   ├── layout/
-│   │   ├── Sidebar.tsx               # Menu lateral (desktop md+)
-│   │   ├── BottomNav.tsx             # Navegação inferior (mobile <md)
-│   │   └── ConditionalLayout.tsx     # Orquestra Sidebar/BottomNav; verifica remember_me
+│   │   ├── Sidebar.tsx               # Menu lateral (desktop md+) — nome dinâmico + filtra módulos
+│   │   ├── BottomNav.tsx             # Navegação inferior (mobile <md) — filtra módulos
+│   │   ├── ModulePrefsContext.tsx    # ModulePrefsProvider/useModulePrefs (localStorage por user)
+│   │   └── ConditionalLayout.tsx     # Orquestra Sidebar/BottomNav + ModulePrefsProvider
 │   ├── dashboard/
 │   │   ├── KPICards.tsx              # 4 cards de indicadores
 │   │   ├── MetaProgress.tsx          # Barra de progresso das faixas de comissão
@@ -503,6 +527,9 @@ A comissão "prevista" considera todas as OS. A "real" considera apenas as `stat
 │   │                                 # + Subscription, SubscriptionStatus, SubscriptionGate
 │   ├── subscription.ts               # PURO/edge-safe: isSubscriptionActive, isProtectedPath, describeSubscription
 │   ├── subscription-db.ts            # getMySubscription() (importa cliente — fora do edge)
+│   ├── stripe.ts                     # getStripe() (lazy) + normalizeStatus (rotas API)
+│   ├── supabase-admin.ts             # createSupabaseAdmin() — service_role (webhook, server-only)
+│   ├── modules.ts                    # MODULES — definição central da navegação/módulos
 │   ├── supabase-middleware.ts        # createMiddlewareClient() para o middleware (Edge)
 │   ├── ofx-parser.ts                 # parseOfx() + ofxToExpenseInserts/ofxToIncomeInserts
 │   ├── finance.ts                    # Interfaces: IncomeEntry, ExpenseEntry, PersonalLoan, BudgetSettings

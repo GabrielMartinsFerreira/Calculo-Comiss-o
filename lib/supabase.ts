@@ -28,6 +28,34 @@ export async function signIn(
   }
 }
 
+export async function signUp(
+  email: string,
+  password: string,
+  fullName: string,
+  rememberMe: boolean
+): Promise<{ needsConfirmation: boolean }> {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { full_name: fullName } }, // vai para user_metadata
+  });
+  if (error) throw error;
+
+  // Se a confirmação de e-mail estiver desativada no Supabase, já vem sessão.
+  // Nesse caso, gravar as flags de "Lembrar-me" para o ConditionalLayout não deslogar.
+  if (data.session) {
+    if (rememberMe) {
+      localStorage.setItem("remember_me", "true");
+      sessionStorage.removeItem("session_only");
+    } else {
+      localStorage.removeItem("remember_me");
+      sessionStorage.setItem("session_only", "active");
+    }
+  }
+
+  return { needsConfirmation: !data.session };
+}
+
 export async function signOut(): Promise<void> {
   localStorage.removeItem("remember_me");
   sessionStorage.removeItem("session_only");

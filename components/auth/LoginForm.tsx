@@ -1,34 +1,59 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Lock, Mail } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, User } from "lucide-react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { signIn } from "@/lib/supabase";
+import { signIn, signUp } from "@/lib/supabase";
 import { toast } from "@/lib/use-toast";
 
 export function LoginForm() {
   const router = useRouter();
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const isSignup = mode === "signup";
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!email.trim() || !password) return;
+    if (isSignup && !fullName.trim()) {
+      toast({ title: "Informe o seu nome completo", variant: "destructive" });
+      return;
+    }
     setLoading(true);
     try {
-      await signIn(email.trim(), password, rememberMe);
-      router.push("/");
-      router.refresh();
+      if (isSignup) {
+        const { needsConfirmation } = await signUp(email.trim(), password, fullName.trim(), rememberMe);
+        if (needsConfirmation) {
+          toast({
+            title: "Conta criada!",
+            description: "Verifique o seu e-mail para confirmar o cadastro antes de entrar.",
+            variant: "success",
+          });
+          setMode("signin");
+          setPassword("");
+        } else {
+          router.push("/");
+          router.refresh();
+        }
+      } else {
+        await signIn(email.trim(), password, rememberMe);
+        router.push("/");
+        router.refresh();
+      }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Credenciais inválidas";
-      toast({ title: "Falha no login", description: msg, variant: "destructive" });
+      const fallback = isSignup ? "Não foi possível criar a conta" : "Credenciais inválidas";
+      const msg = err instanceof Error ? err.message : fallback;
+      toast({ title: isSignup ? "Falha no cadastro" : "Falha no login", description: msg, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -53,15 +78,36 @@ export function LoginForm() {
         />
         <div className="text-center">
           <p className="text-[11px] font-mono text-cyan-500/70 uppercase tracking-widest">
-            // acesso ao sistema
+            // {isSignup ? "criar conta" : "acesso ao sistema"}
           </p>
-          <p className="text-sm text-zinc-600 mt-0.5">Introduza as suas credenciais</p>
+          <p className="text-sm text-zinc-600 mt-0.5">
+            {isSignup ? "Preencha os seus dados" : "Introduza as suas credenciais"}
+          </p>
         </div>
       </div>
 
       {/* Card */}
       <div className="rounded-xl border border-zinc-800/60 bg-[rgba(22,27,38,0.8)] backdrop-blur-sm p-8 shadow-2xl">
         <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Nome Completo (apenas no cadastro) */}
+          {isSignup && (
+            <div className="space-y-1.5">
+              <Label className="text-xs text-zinc-400">Nome Completo</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-600 pointer-events-none" />
+                <Input
+                  type="text"
+                  placeholder="Seu nome"
+                  value={fullName}
+                  onChange={e => setFullName(e.target.value)}
+                  required
+                  autoComplete="name"
+                  className="pl-9 bg-zinc-900/60 border-zinc-700 focus-visible:border-cyan-500/70 focus-visible:ring-1 focus-visible:ring-cyan-500/40"
+                />
+              </div>
+            </div>
+          )}
+
           {/* Email */}
           <div className="space-y-1.5">
             <Label className="text-xs text-zinc-400">Email</Label>
@@ -90,7 +136,7 @@ export function LoginForm() {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 required
-                autoComplete="current-password"
+                autoComplete={isSignup ? "new-password" : "current-password"}
                 className="pl-9 pr-10 bg-zinc-900/60 border-zinc-700 focus-visible:border-cyan-500/70 focus-visible:ring-1 focus-visible:ring-cyan-500/40"
               />
               <button
@@ -146,17 +192,29 @@ export function LoginForm() {
             {loading ? (
               <span className="flex items-center gap-2">
                 <span className="h-3.5 w-3.5 rounded-full border-2 border-zinc-950/30 border-t-zinc-950 animate-spin" />
-                Verificando...
+                {isSignup ? "Criando..." : "Verificando..."}
               </span>
             ) : (
-              "Entrar"
+              isSignup ? "Criar conta" : "Entrar"
             )}
           </Button>
         </form>
+
+        {/* Alternar entre login e cadastro */}
+        <p className="text-center text-sm text-zinc-500 mt-5">
+          {isSignup ? "Já tem conta?" : "Não tem conta?"}{" "}
+          <button
+            type="button"
+            onClick={() => { setMode(isSignup ? "signin" : "signup"); setPassword(""); }}
+            className="font-medium text-cyan-400 hover:text-cyan-300 transition-colors"
+          >
+            {isSignup ? "Entrar" : "Criar conta"}
+          </button>
+        </p>
       </div>
 
       <p className="text-center text-[11px] text-zinc-700 mt-6 font-mono">
-        // sistema privado · acesso restrito
+        // {isSignup ? "comece o seu teste de 14 dias" : "sistema privado · acesso restrito"}
       </p>
     </motion.div>
   );
