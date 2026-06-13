@@ -28,6 +28,9 @@ export default function CheckoutPage() {
   }, []);
 
   const active = isSubscriptionActive(sub);
+  // "Gerir cobrança" só vale para quem JÁ tem assinatura paga na Stripe.
+  // No trial (sem subscription na Stripe) o botão certo é "Assinar agora".
+  const hasPaidSub = !!sub?.stripe_subscription_id;
   const [redirecting, setRedirecting] = useState(false);
 
   // Cria a Checkout Session no backend e redireciona para a página da Stripe.
@@ -106,8 +109,8 @@ export default function CheckoutPage() {
         </ul>
 
         <div className="mt-6 flex flex-col gap-2">
-          <Button onClick={active ? handleManage : handleSubscribe} disabled={redirecting} className="w-full">
-            {redirecting ? "Redirecionando..." : active ? "Gerir cobrança" : "Assinar agora"}
+          <Button onClick={hasPaidSub ? handleManage : handleSubscribe} disabled={redirecting} className="w-full">
+            {redirecting ? "Redirecionando..." : hasPaidSub ? "Gerir cobrança" : "Assinar agora"}
           </Button>
           {active && (
             <Button asChild variant="neon" className="w-full">
