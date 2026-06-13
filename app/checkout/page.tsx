@@ -28,15 +28,36 @@ export default function CheckoutPage() {
   }, []);
 
   const active = isSubscriptionActive(sub);
+  const [redirecting, setRedirecting] = useState(false);
 
-  function handleSubscribe() {
-    // Integração Stripe Checkout entra aqui (criar sessão no backend e redirecionar).
-    // Sem as chaves Stripe configuradas, sinalizamos honestamente o estado.
-    toast({
-      title: "Checkout Stripe não configurado",
-      description: "Defina as chaves Stripe e a rota de criação de sessão para ativar a cobrança.",
-      variant: "destructive",
-    });
+  // Cria a Checkout Session no backend e redireciona para a página da Stripe.
+  async function handleSubscribe() {
+    setRedirecting(true);
+    try {
+      const res = await fetch("/api/checkout", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok || !data.url) throw new Error(data.error ?? "Falha ao iniciar o checkout");
+      window.location.href = data.url as string;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erro ao iniciar o checkout";
+      toast({ title: "Erro no checkout", description: msg, variant: "destructive" });
+      setRedirecting(false);
+    }
+  }
+
+  // Abre o Customer Portal (gerir/cancelar) quando já há assinatura.
+  async function handleManage() {
+    setRedirecting(true);
+    try {
+      const res = await fetch("/api/portal", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok || !data.url) throw new Error(data.error ?? "Falha ao abrir o portal");
+      window.location.href = data.url as string;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erro ao abrir o portal";
+      toast({ title: "Erro", description: msg, variant: "destructive" });
+      setRedirecting(false);
+    }
   }
 
   return (
@@ -85,8 +106,8 @@ export default function CheckoutPage() {
         </ul>
 
         <div className="mt-6 flex flex-col gap-2">
-          <Button onClick={handleSubscribe} className="w-full">
-            {active ? "Gerir cobrança" : "Assinar agora"}
+          <Button onClick={active ? handleManage : handleSubscribe} disabled={redirecting} className="w-full">
+            {redirecting ? "Redirecionando..." : active ? "Gerir cobrança" : "Assinar agora"}
           </Button>
           {active && (
             <Button asChild variant="neon" className="w-full">
