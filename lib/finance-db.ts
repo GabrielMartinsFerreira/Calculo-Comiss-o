@@ -4,6 +4,7 @@ import { addMonths, format, parseISO, startOfMonth } from "date-fns";
 import type {
   IncomeEntry, ExpenseEntry, BudgetSettings,
   IncomeEntryInsert, ExpenseEntryInsert, PersonalLoan,
+  CreditCard, CreditCardInsert, BudgetCategory,
 } from "./finance";
 
 // ── Income ──────────────────────────────────────────────────
@@ -82,10 +83,94 @@ export async function upsertBudgetSettings(
   variable_expense_limit: number | null,
   notes?: string
 ): Promise<void> {
+  // unique key passou a ser (user_id, competencia) na migração 007.
+  // O trigger set_user_id preenche user_id antes da checagem de conflito.
   const { error } = await supabase.from("budget_settings").upsert(
     { competencia, variable_expense_limit, notes },
-    { onConflict: "competencia" }
+    { onConflict: "user_id,competencia" }
   );
+  if (error) throw error;
+}
+
+// ── Budget Categories / Envelopes (Evolução C) ───────────────
+
+/** Garante que existe um budget_settings para o mês e devolve o seu id. */
+export async function ensureBudgetSetting(competencia: string): Promise<string> {
+  const existing = await supabase
+    .from("budget_settings").select("id").eq("competencia", competencia).maybeSingle();
+  if (existing.data?.id) return existing.data.id as string;
+
+  const { data, error } = await supabase
+    .from("budget_settings")
+    .insert({ competencia, variable_expense_limit: null })
+    .select("id")
+    .single();
+  if (error) throw error;
+  return data.id as string;
+}
+
+export async function getBudgetCategories(competencia: string): Promise<BudgetCategory[]> {
+  const setting = await supabase
+    .from("budget_settings").select("id").eq("competencia", competencia).maybeSingle();
+  if (!setting.data?.id) return [];
+
+  const { data, error } = await supabase
+    .from("budget_categories")
+    .select("*")
+    .eq("budget_setting_id", setting.data.id)
+    .order("category_name", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as BudgetCategory[];
+}
+
+export async function upsertBudgetCategory(
+  competencia: string,
+  category_name: string,
+  allocated_amount: number
+): Promise<void> {
+  const budget_setting_id = await ensureBudgetSetting(competencia);
+  const { error } = await supabase.from("budget_categories").upsert(
+    { budget_setting_id, category_name, allocated_amount },
+    { onConflict: "budget_setting_id,category_name" }
+  );
+  if (error) throw error;
+}
+
+export async function deleteBudgetCategory(id: string): Promise<void> {
+  const { error } = await supabase.from("budget_categories").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ── Credit Cards (Evolução B) ────────────────────────────────
+
+export async function getCreditCards(): Promise<CreditCard[]> {
+  const { data, error } = await supabase
+    .from("credit_cards")
+    .select("*")
+    .order("name", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as CreditCard[];
+}
+
+export async function createCreditCard(card: CreditCardInsert): Promise<CreditCard> {
+  const { data, error } = await supabase
+    .from("credit_cards").insert(card).select().single();
+  if (error) throw error;
+  return data as CreditCard;
+}
+
+export async function updateCreditCard(
+  id: string,
+  updates: Partial<CreditCardInsert>
+): Promise<CreditCard> {
+  const { data, error } = await supabase
+    .from("credit_cards").update(updates).eq("id", id).select().single();
+  if (error) throw error;
+  return data as CreditCard;
+}
+
+export async function deleteCreditCard(id: string): Promise<void> {
+  const { error } = await supabase.from("credit_cards").delete().eq("id", id);
   if (error) throw error;
 }
 
@@ -325,4 +410,41 @@ export async function getFinanceCompetencias(): Promise<string[]> {
   const seen = new Set<string>();
   [...(inc ?? []), ...(exp ?? [])].forEach(r => seen.add(r.competencia));
   return [...seen].sort((a, b) => b.localeCompare(a));
+}
+
+// ── Bulk insert (conciliação OFX) ────────────────────────────
+// Deduplica por external_id (FITID): consulta os já existentes do utilizador
+// (RLS restringe à própria conta) e insere apenas os novos. O índice único
+// parcial em (user_id, external_id) é a rede de segurança final.
+
+async function existingExternalIds(table: "expense_entries" | "income_entries", ids: string[]): Promise<Set<string>> {
+  if (ids.length === 0) return new Set();
+  const { data } = await supabase.from(table).select("external_id").in("external_id", ids);
+  return new Set(
+    (data ?? [])
+      .map((r: { external_id: string | null }) => r.external_id)
+      .filter((x): x is string => !!x)
+  );
+}
+
+export async function bulkInsertExpenses(rows: ExpenseEntryInsert[]): Promise<number> {
+  if (rows.length === 0) return 0;
+  const ids = rows.map(r => r.external_id).filter((x): x is string => !!x);
+  const existing = await existingExternalIds("expense_entries", ids);
+  const toInsert = rows.filter(r => !r.external_id || !existing.has(r.external_id));
+  if (toInsert.length === 0) return 0;
+  const { error } = await supabase.from("expense_entries").insert(toInsert);
+  if (error) throw error;
+  return toInsert.length;
+}
+
+export async function bulkInsertIncomes(rows: IncomeEntryInsert[]): Promise<number> {
+  if (rows.length === 0) return 0;
+  const ids = rows.map(r => r.external_id).filter((x): x is string => !!x);
+  const existing = await existingExternalIds("income_entries", ids);
+  const toInsert = rows.filter(r => !r.external_id || !existing.has(r.external_id));
+  if (toInsert.length === 0) return 0;
+  const { error } = await supabase.from("income_entries").insert(toInsert);
+  if (error) throw error;
+  return toInsert.length;
 }

@@ -1,15 +1,15 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { createIncome, updateIncome, createExpense, updateExpense, createLoan } from "@/lib/finance-db";
+import { createIncome, updateIncome, createExpense, updateExpense, createLoan, getCreditCards } from "@/lib/finance-db";
 import { toast } from "@/lib/use-toast";
 import { formatCurrency } from "@/lib/utils";
 import { INCOME_CATEGORIES, EXPENSE_CATEGORIES } from "@/lib/finance";
-import type { IncomeEntry, ExpenseEntry, IncomeCategory, ExpenseCategory, IncomeStatus, ExpenseStatus, PaymentMethod } from "@/lib/finance";
+import type { IncomeEntry, ExpenseEntry, IncomeCategory, ExpenseCategory, IncomeStatus, ExpenseStatus, PaymentMethod, CreditCard } from "@/lib/finance";
 
 const PAYMENT_METHODS: PaymentMethod[] = ["Dinheiro", "Pix", "Débito", "Cartão de Crédito"];
 
@@ -38,6 +38,7 @@ export function EntryFormModal({
       due_description: editingIncome.due_description ?? "", due_day: "",
       is_recurring: editingIncome.is_recurring, status: editingIncome.status,
       payment_method: "Dinheiro" as PaymentMethod,
+      credit_card_id: null as string | null,
     };
     if (editingExpense) return {
       description: editingExpense.description, category: editingExpense.category,
@@ -45,12 +46,14 @@ export function EntryFormModal({
       due_description: "", due_day: String(editingExpense.due_day ?? ""),
       is_recurring: editingExpense.is_recurring, status: editingExpense.status,
       payment_method: (editingExpense.payment_method ?? "Dinheiro") as PaymentMethod,
+      credit_card_id: editingExpense.credit_card_id ?? null,
     };
     return {
       description: "", category: isIncome ? "Salário" : "Outro",
       type: "Fixo", amount: "", due_description: "", due_day: "",
       is_recurring: false, status: "Pendente",
       payment_method: "Dinheiro" as PaymentMethod,
+      credit_card_id: null as string | null,
     };
   });
 
@@ -58,6 +61,14 @@ export function EntryFormModal({
     debtorName: "", description: "", installmentAmount: "", totalInstallments: "", dueDay: "",
   });
   const [loading, setLoading] = useState(false);
+  const [cards, setCards] = useState<CreditCard[]>([]);
+
+  // Carrega cartões só quando o modal de despesa abre.
+  useEffect(() => {
+    if (open && mode === "expense") {
+      getCreditCards().then(setCards).catch(() => setCards([]));
+    }
+  }, [open, mode]);
 
   // A entrada de empréstimo só existe na criação (não na edição)
   const isLoan = isIncome && !isEditing && form.category === "Empréstimo";
@@ -109,6 +120,7 @@ export function EntryFormModal({
             amount, due_day: form.due_day ? parseInt(form.due_day) : null,
             is_recurring: form.is_recurring, status: form.status as ExpenseStatus,
             payment_method: form.payment_method,
+            credit_card_id: form.payment_method === "Cartão de Crédito" ? form.credit_card_id : null,
           };
           if (editingExpense) await updateExpense(editingExpense.id, payload);
           else await createExpense(payload);
@@ -356,6 +368,25 @@ export function EntryFormModal({
                     <SelectContent className="bg-zinc-900 border-zinc-700">
                       {PAYMENT_METHODS.map(m => (
                         <SelectItem key={m} value={m}>{m}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Seletor de cartão — só quando a forma de pagamento é Cartão de Crédito */}
+              {!isIncome && form.payment_method === "Cartão de Crédito" && cards.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-zinc-400">Cartão</Label>
+                  <Select
+                    value={form.credit_card_id ?? "none"}
+                    onValueChange={v => set("credit_card_id", v === "none" ? null : v)}
+                  >
+                    <SelectTrigger className="bg-zinc-900 border-zinc-700"><SelectValue placeholder="Selecionar cartão" /></SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-zinc-700">
+                      <SelectItem value="none">Sem cartão específico</SelectItem>
+                      {cards.map(c => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

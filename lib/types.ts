@@ -39,3 +39,27 @@ export interface DashboardData {
   current_month: MonthSummary;
   orders: ServiceOrder[];
 }
+
+// ── Assinaturas (SaaS Multi-Tenant) ──────────────────────────
+
+export type SubscriptionStatus = "trial" | "active" | "past_due" | "canceled";
+
+export interface Subscription {
+  id: string;
+  user_id: string;
+  status: SubscriptionStatus;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  current_period_end: string | null; // ISO timestamptz
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Snapshot mínimo usado pelo middleware (edge) para decidir o gate de acesso.
+ * Mantido enxuto de propósito — apenas o necessário para `isSubscriptionActive`.
+ */
+export interface SubscriptionGate {
+  status: SubscriptionStatus;
+  current_period_end: string | null;
+}

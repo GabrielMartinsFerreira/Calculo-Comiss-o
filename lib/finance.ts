@@ -35,6 +35,7 @@ export interface IncomeEntry {
   loan_id?: string | null;
   personal_loans?: PersonalLoan | null;
   status: IncomeStatus;
+  external_id?: string | null; // <FITID> do extrato OFX (dedup)
   created_at: string;
   updated_at: string;
 }
@@ -50,8 +51,42 @@ export interface ExpenseEntry {
   is_recurring: boolean;
   payment_method: PaymentMethod;
   status: ExpenseStatus;
+  credit_card_id?: string | null; // FK opcional para credit_cards
+  external_id?: string | null;    // <FITID> do extrato OFX (dedup)
   created_at: string;
   updated_at: string;
+}
+
+// ── Cartões de Crédito (Evolução B) ──────────────────────────
+
+export interface CreditCard {
+  id: string;
+  name: string;
+  limit_amount: number;
+  closing_day: number | null;
+  due_day: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type CreditCardInsert = Pick<
+  CreditCard,
+  "name" | "limit_amount" | "closing_day" | "due_day"
+>;
+
+export type CardInvoiceStatus = "Vazia" | "Aberta" | "Paga";
+
+export interface CardInvoice {
+  card: CreditCard;
+  competencia: string;
+  total: number;             // soma de todas as compras do cartão no mês
+  paid: number;              // soma das compras com status "Pago"
+  pending: number;           // total - paid
+  entryCount: number;
+  status: CardInvoiceStatus;
+  limitUsedPercent: number;  // total / limit_amount * 100 (0 se sem limite)
+  closingDate: string | null;
+  dueDate: string | null;
 }
 
 export interface BudgetSettings {
@@ -60,6 +95,29 @@ export interface BudgetSettings {
   variable_expense_limit: number | null;
   notes: string | null;
   created_at: string;
+}
+
+// ── Orçamentos por categoria / Envelopes (Evolução C) ────────
+
+export interface BudgetCategory {
+  id: string;
+  budget_setting_id: string;
+  category_name: string;
+  allocated_amount: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type EnvelopeStatus = "safe" | "warning" | "danger";
+
+export interface BudgetEnvelope {
+  category: string;
+  allocated: number;
+  spent: number;
+  remaining: number;   // allocated - spent (pode ser negativo)
+  percent: number;     // spent/allocated*100 (0 quando allocated = 0)
+  status: EnvelopeStatus;
+  isPulsing: boolean;  // true quando estourou (percent > 100)
 }
 
 export type IncomeEntryInsert = Omit<IncomeEntry, "id" | "created_at" | "updated_at" | "personal_loans">;
@@ -129,3 +187,98 @@ export function computeFinanceSummary(
 
 export const INCOME_CATEGORIES: IncomeCategory[] = ["Salário", "Benefício", "Transporte", "Comissão", "Empréstimo", "Outro"];
 export const EXPENSE_CATEGORIES: ExpenseCategory[] = ["Assinatura", "Saúde", "Cartão", "Alimentação", "Transporte", "Lazer", "Parcela", "Outro"];
+
+// ── Faturas de Cartão de Crédito (Evolução B) ────────────────
+
+/**
+ * Converte (competencia + dia) num ISO date, respeitando o último dia
+ * do mês e um eventual deslocamento de meses. Puro, sem date-fns.
+ */
+function isoForDay(competencia: string, day: number | null, monthOffset = 0): string | null {
+  if (!day) return null;
+  const [y, m] = competencia.split("-").map(Number);
+  if (!y || !m) return null;
+  const base = new Date(Date.UTC(y, m - 1 + monthOffset, 1));
+  const year = base.getUTCFullYear();
+  const month = base.getUTCMonth(); // 0-based
+  const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  const d = Math.min(day, lastDay);
+  return `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+/**
+ * Consolida a fatura de cada cartão para a competência informada.
+ * - Agrupa as despesas com `credit_card_id` correspondente.
+ * - "Paga" quando não há saldo pendente; "Aberta" enquanto houver; "Vazia" sem compras.
+ * - `dueDate` cai no mês seguinte quando o dia de vencimento é anterior/igual
+ *   ao dia de fechamento (comportamento usual de cartão).
+ */
+export function computeCardInvoices(
+  cards: CreditCard[],
+  expenses: ExpenseEntry[],
+  competencia: string
+): CardInvoice[] {
+  return cards.map((card) => {
+    const items = expenses.filter(
+      (e) => e.credit_card_id === card.id && e.competencia === competencia
+    );
+    const total   = items.reduce((s, e) => s + e.amount, 0);
+    const paid    = items.filter((e) => e.status === "Pago").reduce((s, e) => s + e.amount, 0);
+    const pending = total - paid;
+
+    const status: CardInvoiceStatus =
+      total === 0 ? "Vazia" : pending <= 0.005 ? "Paga" : "Aberta";
+
+    const limitUsedPercent = card.limit_amount > 0 ? (total / card.limit_amount) * 100 : 0;
+    const closingDate = isoForDay(competencia, card.closing_day, 0);
+    const dueOffset =
+      card.due_day != null && card.closing_day != null && card.due_day <= card.closing_day ? 1 : 0;
+    const dueDate = isoForDay(competencia, card.due_day, dueOffset);
+
+    return { card, competencia, total, paid, pending, entryCount: items.length, status, limitUsedPercent, closingDate, dueDate };
+  });
+}
+
+// ── Envelopes: cruza alocações por categoria com o gasto real ─
+
+/**
+ * Faixas de cor (Evolução C):
+ *   - safe    (verde):    até 70%
+ *   - warning (amarelo):  71% a 90%
+ *   - danger  (vermelho): acima de 90%  → pulsante quando passa de 100%
+ */
+export function envelopeStatus(percent: number): EnvelopeStatus {
+  if (percent <= 70) return "safe";
+  if (percent <= 90) return "warning";
+  return "danger";
+}
+
+/**
+ * Para cada alocação, soma as despesas do mês na mesma categoria.
+ * `expenses` deve conter as despesas já filtradas pela competência (a página
+ * de Finanças carrega por competência). Considera todas as despesas da
+ * categoria (planejadas + pagas) como comprometimento do envelope.
+ */
+export function computeBudgetEnvelopes(
+  categories: BudgetCategory[],
+  expenses: ExpenseEntry[]
+): BudgetEnvelope[] {
+  return categories
+    .map((cat) => {
+      const allocated = cat.allocated_amount;
+      const spent = expenses
+        .filter((e) => e.category === cat.category_name)
+        .reduce((s, e) => s + e.amount, 0);
+      const percent = allocated > 0 ? (spent / allocated) * 100 : (spent > 0 ? 100 : 0);
+      return {
+        category: cat.category_name,
+        allocated,
+        spent,
+        remaining: allocated - spent,
+        percent,
+        status: envelopeStatus(percent),
+        isPulsing: percent > 100,
+      };
+    })
+    .sort((a, b) => b.percent - a.percent);
+}

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
-import { Copy, Settings2 } from "lucide-react";
+import { Copy, Settings2, Upload } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,15 +10,19 @@ import { Label } from "@/components/ui/label";
 import { HealthDashboard } from "@/components/financas/HealthDashboard";
 import { IncomePanel } from "@/components/financas/IncomePanel";
 import { ExpensePanel } from "@/components/financas/ExpensePanel";
+import { BudgetEnvelopes } from "@/components/financas/BudgetEnvelopes";
+import { BudgetEnvelopeModal } from "@/components/financas/BudgetEnvelopeModal";
+import { CreditCardsPanel } from "@/components/financas/CreditCardsPanel";
+import { OfxImportModal } from "@/components/financas/OfxImportModal";
 import {
   getIncomes, getExpenses, getBudgetSettings,
   upsertBudgetSettings, initializeMonth, syncCommission,
-  getFinanceCompetencias,
+  getFinanceCompetencias, getCreditCards, getBudgetCategories,
 } from "@/lib/finance-db";
-import { computeFinanceSummary } from "@/lib/finance";
+import { computeFinanceSummary, computeCardInvoices, computeBudgetEnvelopes } from "@/lib/finance";
 import { getCurrentCompetencia, formatMonthYear } from "@/lib/utils";
 import { toast } from "@/lib/use-toast";
-import type { IncomeEntry, ExpenseEntry, BudgetSettings } from "@/lib/finance";
+import type { IncomeEntry, ExpenseEntry, BudgetSettings, CreditCard, BudgetCategory } from "@/lib/finance";
 
 export default function FinancasPage() {
   const [competencia, setCompetencia] = useState(getCurrentCompetencia());
@@ -26,9 +30,13 @@ export default function FinancasPage() {
   const [incomes, setIncomes] = useState<IncomeEntry[]>([]);
   const [expenses, setExpenses] = useState<ExpenseEntry[]>([]);
   const [budget, setBudget] = useState<BudgetSettings | null>(null);
+  const [creditCards, setCreditCards] = useState<CreditCard[]>([]);
+  const [budgetCategories, setBudgetCategories] = useState<BudgetCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [initializing, setInitializing] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [envelopeModalOpen, setEnvelopeModalOpen] = useState(false);
+  const [ofxOpen, setOfxOpen] = useState(false);
   const [limitInput, setLimitInput] = useState("");
 
   const load = useCallback(async () => {
@@ -37,17 +45,21 @@ export default function FinancasPage() {
       // Sincroniza comissão automaticamente com as OS pagas do mês
       await syncCommission(competencia).catch(() => {});
 
-      const [comps, inc, exp, bdg] = await Promise.all([
+      const [comps, inc, exp, bdg, cards, cats] = await Promise.all([
         getFinanceCompetencias(),
         getIncomes(competencia),
         getExpenses(competencia),
         getBudgetSettings(competencia),
+        getCreditCards().catch(() => []),
+        getBudgetCategories(competencia).catch(() => []),
       ]);
       const allComps = comps.includes(competencia) ? comps : [competencia, ...comps];
       setCompetencias(allComps);
       setIncomes(inc);
       setExpenses(exp);
       setBudget(bdg);
+      setCreditCards(cards);
+      setBudgetCategories(cats);
       setLimitInput(bdg?.variable_expense_limit?.toString() ?? "");
     } finally {
       setLoading(false);
@@ -83,6 +95,8 @@ export default function FinancasPage() {
   }
 
   const summary = computeFinanceSummary(incomes, expenses);
+  const cardInvoices = computeCardInvoices(creditCards, expenses, competencia);
+  const envelopes = computeBudgetEnvelopes(budgetCategories, expenses);
   const isEmpty = incomes.length === 0 && expenses.length === 0;
 
   return (
@@ -111,6 +125,11 @@ export default function FinancasPage() {
             onClick={handleInitMonth} disabled={initializing}>
             <Copy className={`h-3.5 w-3.5 ${initializing ? "animate-spin" : ""}`} />
             {initializing ? "Inicializando..." : "Inicializar Mês"}
+          </Button>
+          <Button variant="outline" size="sm" className="h-9 gap-2 text-xs"
+            onClick={() => setOfxOpen(true)} title="Importar extrato bancário OFX">
+            <Upload className="h-3.5 w-3.5" />
+            Importar OFX
           </Button>
           <Button variant="ghost" size="icon" className="h-9 w-9 text-zinc-500 hover:text-zinc-200"
             onClick={() => setSettingsOpen(true)} title="Configurar limite de orçamento">
@@ -149,6 +168,12 @@ export default function FinancasPage() {
               </div>
             </>
           )}
+
+          {/* Envelopes e cartões — independentes do estado vazio */}
+          <div className="grid gap-5 lg:grid-cols-2">
+            <BudgetEnvelopes envelopes={envelopes} onManage={() => setEnvelopeModalOpen(true)} />
+            <CreditCardsPanel invoices={cardInvoices} onRefresh={load} />
+          </div>
         </>
       )}
 
@@ -177,6 +202,23 @@ export default function FinancasPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Orçamentos por categoria (envelopes) */}
+      <BudgetEnvelopeModal
+        open={envelopeModalOpen}
+        onOpenChange={setEnvelopeModalOpen}
+        competencia={competencia}
+        categories={budgetCategories}
+        onSuccess={load}
+      />
+
+      {/* Importação de extrato OFX */}
+      <OfxImportModal
+        open={ofxOpen}
+        onOpenChange={setOfxOpen}
+        creditCards={creditCards}
+        onSuccess={load}
+      />
     </div>
   );
 }
