@@ -69,7 +69,8 @@ CREATE POLICY "anon_all" ON public.service_orders
 -- ============================================================
 -- View auxiliar: resumo mensal (opcional, para uso futuro)
 -- ============================================================
-CREATE OR REPLACE VIEW public.monthly_summary AS
+CREATE OR REPLACE VIEW public.monthly_summary
+WITH (security_invoker = on) AS
 SELECT
   competencia,
   COUNT(*)                                              AS total_orders,

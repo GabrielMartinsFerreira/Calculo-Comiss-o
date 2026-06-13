@@ -119,7 +119,8 @@ $$;
 -- ============================================================
 -- View: Resumo financeiro mensal
 -- ============================================================
-CREATE OR REPLACE VIEW public.monthly_finance_summary AS
+CREATE OR REPLACE VIEW public.monthly_finance_summary
+WITH (security_invoker = on) AS
 SELECT
   COALESCE(i.competencia, e.competencia) AS competencia,
   COALESCE(SUM(i.amount) FILTER (WHERE i.type = 'Fixo'),    0) AS total_income_fixed,
