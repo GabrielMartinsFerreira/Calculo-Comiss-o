@@ -77,8 +77,13 @@ A função `set_user_id()` (SECURITY DEFINER) preenche `user_id = auth.uid()` au
 5. `005_expense_payment.sql` — adiciona `payment_method` em `expense_entries`
 6. `006_fix_rls_backfill.sql` — corrige linhas com `user_id = NULL` (executar uma única vez após criar conta)
 7. `007_saas_evolutions.sql` — assinaturas, cartões de crédito, orçamentos por categoria, `external_id` (OFX)
-8. Criar conta em Authentication → Users
-9. Executar os UPDATE comentados em `004_auth_rls.sql` para migrar dados existentes para o `user_id`
+8. `008_security_invoker_views.sql` — views `monthly_summary`/`monthly_finance_summary` com `security_invoker` (respeitam o RLS de quem consulta)
+9. `009_fix_service_orders_rls.sql` — **reativa o RLS em `service_orders`** (estava desligado → global) + índices `(user_id, competencia)`
+10. Criar conta em Authentication → Users
+11. Executar os UPDATE comentados em `004_auth_rls.sql` para migrar dados existentes para o `user_id`
+
+> ⚠️ **Lição (009):** RLS pode ficar **desativado** numa tabela mesmo com a política `user_own` existindo — a política só vale se `relrowsecurity = true`. Verifique com:
+> `SELECT relname, relrowsecurity FROM pg_class WHERE relname = 'service_orders';`
 
 > A migração 007 é idempotente, cria o trigger de trial (14 dias) para novos utilizadores e
 > faz backfill de uma assinatura `active` para os utilizadores existentes (não bloqueia o dono).
@@ -185,8 +190,13 @@ Permite ao utilizador escolher quais módulos aparecem no menu (experiência mod
 | `app/configuracoes/page.tsx` | Página com switches por módulo |
 | `Sidebar` / `BottomNav` | Consomem `isEnabled(key)` e ocultam módulos desativados em tempo real |
 
-- **Dashboard** e **Configurações** têm `toggleable: false` (sempre visíveis). Lançamentos, Relatórios e Finanças são ativáveis.
+- Apenas **Configurações** tem `toggleable: false` (sempre visível, para o utilizador conseguir reativar módulos). **Dashboard**, Lançamentos, Relatórios e Finanças são todos ativáveis.
 - Preferência de **UI** (não dado de negócio): fica no dispositivo via `localStorage` (`module_prefs_<userId>`), evitando flicker e round-trip ao banco. O `ModulePrefsProvider` envolve a árvore em `ConditionalLayout`.
+
+### Desempenho / Otimizações
+- **Finanças:** `syncCommission()` roda **em paralelo** com as buscas independentes (`Promise.all`); só `getIncomes()` espera, pois reflete a comissão sincronizada.
+- **Índices compostos** `(user_id, competencia DESC)` em `service_orders`, `income_entries` e `expense_entries` (migração 009) — o filtro mensal é sempre combinado com `user_id` (RLS), então o índice composto evita varredura.
+- Dashboard/Lançamentos/Relatórios já carregam dados em `Promise.all`.
 
 ### Padrões de responsividade adotados
 | Padrão | Uso |
@@ -565,7 +575,9 @@ A comissão "prevista" considera todas as OS. A "real" considera apenas as `stat
     ├── 004_auth_rls.sql              # user_id + trigger set_user_id() + políticas RLS
     ├── 005_expense_payment.sql       # payment_method em expense_entries
     ├── 006_fix_rls_backfill.sql      # Backfill user_id=NULL (executar 1x após criar conta)
-    └── 007_saas_evolutions.sql       # subscriptions, credit_cards, budget_categories, external_id (OFX)
+    ├── 007_saas_evolutions.sql       # subscriptions, credit_cards, budget_categories, external_id (OFX)
+    ├── 008_security_invoker_views.sql # views com security_invoker (respeitam RLS)
+    └── 009_fix_service_orders_rls.sql # reativa RLS em service_orders + índices (user_id, competencia)
 ```
 
 ---

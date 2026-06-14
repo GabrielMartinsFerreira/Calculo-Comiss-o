@@ -16,7 +16,7 @@ export interface ModuleDef {
 }
 
 export const MODULES: ModuleDef[] = [
-  { key: "dashboard",     href: "/",              label: "Dashboard",     icon: LayoutDashboard, toggleable: false, description: "Visão geral de comissões e metas" },
+  { key: "dashboard",     href: "/",              label: "Dashboard",     icon: LayoutDashboard, toggleable: true,  description: "Visão geral de comissões e metas" },
   { key: "lancamentos",   href: "/lancamentos",   label: "Lançamentos",   icon: FileText,        toggleable: true,  description: "Ordens de serviço e comissões" },
   { key: "relatorios",    href: "/relatorios",    label: "Relatórios",    icon: BarChart2,       toggleable: true,  description: "Gráficos e histórico mensal" },
   { key: "financas",      href: "/financas",      label: "Finanças",      icon: Wallet,          toggleable: true,  description: "Gestão financeira pessoal" },

@@ -42,17 +42,17 @@ export default function FinancasPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      // Sincroniza comissão automaticamente com as OS pagas do mês
-      await syncCommission(competencia).catch(() => {});
-
-      const [comps, inc, exp, bdg, cards, cats] = await Promise.all([
+      // Otimização: syncCommission roda EM PARALELO com as buscas independentes.
+      // getIncomes vem logo depois pois precisa refletir a comissão já sincronizada.
+      const [, comps, exp, bdg, cards, cats] = await Promise.all([
+        syncCommission(competencia).catch(() => {}),
         getFinanceCompetencias(),
-        getIncomes(competencia),
         getExpenses(competencia),
         getBudgetSettings(competencia),
         getCreditCards().catch(() => []),
         getBudgetCategories(competencia).catch(() => []),
       ]);
+      const inc = await getIncomes(competencia);
       const allComps = comps.includes(competencia) ? comps : [competencia, ...comps];
       setCompetencias(allComps);
       setIncomes(inc);
