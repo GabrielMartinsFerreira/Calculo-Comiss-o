@@ -199,7 +199,13 @@ Duas naturezas de preferência:
 
 Flag atual: **Comissão automática** (`FEATURE_AUTO_COMMISSION`, default ligado) — ver Sincronização de Comissão.
 
-- Apenas **Configurações** tem `toggleable: false` (sempre visível, para o utilizador conseguir reativar módulos). **Dashboard**, Lançamentos, Relatórios e Finanças são todos ativáveis.
+- Apenas **Configurações** tem `toggleable: false` (sempre visível, para o utilizador conseguir reativar módulos). **Dashboard**, Lançamentos, Relatórios, Finanças e **Tutorial** são todos ativáveis.
+
+### Página de Tutorial (`/tutorial`)
+Onboarding/documentação para o utilizador final, registrado em `MODULES` (`lib/modules.ts`).
+- `app/tutorial/page.tsx` — client component puro (sem deps novas): abas responsivas (`grid-cols-2 sm:grid-cols-4`, sem scroll horizontal) que alternam entre **Comissões, Finanças, Cartões e Empréstimos**.
+- Cada módulo tem passos em **acordeão** (animação de altura via Framer Motion), uma **Dica** e ícones Lucide com os acentos neon. Cards de CTA no fim usam `whileInView` (fade-in ao rolar) + hover.
+- Fora do gate de assinatura (educacional) e do padrão de design Dark Sci-Fi.
 - Preferência de **UI** (não dado de negócio): fica no dispositivo via `localStorage` (`module_prefs_<userId>`), evitando flicker e round-trip ao banco. O `ModulePrefsProvider` envolve a árvore em `ConditionalLayout`.
 
 ### Desempenho / Otimizações
@@ -514,6 +520,7 @@ A comissão "prevista" considera todas as OS. A "real" considera apenas as `stat
 │   ├── lancamentos/page.tsx          # CRUD de Ordens de Serviço
 │   ├── relatorios/page.tsx           # Gráficos e histórico mensal
 │   ├── financas/page.tsx             # Gestão financeira pessoal
+│   ├── tutorial/page.tsx             # Onboarding/guia — passo a passo de cada módulo (tabs + acordeões)
 │   ├── configuracoes/page.tsx        # Configurações de Módulos (toggles do menu)
 │   ├── checkout/page.tsx             # Gestão de plano / assinatura (Stripe)
 │   ├── api/                          # Rotas server: checkout, webhooks/stripe, portal
