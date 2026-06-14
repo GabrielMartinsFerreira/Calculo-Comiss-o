@@ -1,11 +1,11 @@
 "use client";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TOGGLEABLE_MODULES } from "@/lib/modules";
+import { TOGGLEABLE_MODULES, FEATURES } from "@/lib/modules";
 import { useModulePrefs } from "@/components/layout/ModulePrefsContext";
 
 export default function ConfiguracoesPage() {
-  const { isEnabled, toggle, ready } = useModulePrefs();
+  const { isEnabled, toggle, ready, isFeatureOn, toggleFeature } = useModulePrefs();
   const enabledCount = TOGGLEABLE_MODULES.filter((m) => isEnabled(m.key)).length;
 
   return (
@@ -64,8 +64,45 @@ export default function ConfiguracoesPage() {
         </CardContent>
       </Card>
 
+      {/* Comportamento */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm text-zinc-100">Comportamento</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {FEATURES.map((f, i) => {
+            const on = isFeatureOn(f.key, f.defaultOn);
+            return (
+              <motion.div
+                key={f.key}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+                className="flex items-start gap-3 rounded-lg border border-zinc-800/50 bg-zinc-900/30 px-3 py-3 transition-colors hover:border-zinc-700/60"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className={`text-sm font-medium ${on ? "text-zinc-200" : "text-zinc-500"}`}>{f.label}</p>
+                  <p className="text-[11px] text-zinc-600 mt-0.5">{f.description}</p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={on}
+                  aria-label={`${on ? "Desativar" : "Ativar"} ${f.label}`}
+                  onClick={() => toggleFeature(f.key, f.defaultOn)}
+                  disabled={!ready}
+                  className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full border transition-colors disabled:opacity-50 ${on ? "border-cyan-400 bg-cyan-500/90" : "border-zinc-700 bg-zinc-800"}`}
+                >
+                  <span className={`absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-white shadow transition-all ${on ? "left-[22px]" : "left-1"}`} />
+                </button>
+              </motion.div>
+            );
+          })}
+        </CardContent>
+      </Card>
+
       <p className="text-[11px] text-zinc-700 font-mono">
-        // Dashboard e Configurações ficam sempre visíveis. A preferência é guardada neste dispositivo.
+        // Dashboard e Configurações ficam sempre visíveis. As preferências são guardadas neste dispositivo.
       </p>
     </div>
   );

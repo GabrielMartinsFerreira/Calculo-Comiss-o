@@ -186,10 +186,13 @@ Barra de navegação inferior, visível apenas em mobile (`md:hidden`):
 Permite ao utilizador escolher quais módulos aparecem no menu (experiência modular por cliente).
 | Peça | Papel |
 |------|-------|
-| `lib/modules.ts` | Fonte única dos módulos (`MODULES`): key, href, label, icon, `toggleable` |
-| `components/layout/ModulePrefsContext.tsx` | `ModulePrefsProvider` + `useModulePrefs()` — guarda prefs em `localStorage` por `user.id` |
-| `app/configuracoes/page.tsx` | Página com switches por módulo |
+| `lib/modules.ts` | Fonte única dos módulos (`MODULES`) **e flags de comportamento** (`FEATURES`, ex.: `FEATURE_AUTO_COMMISSION`) |
+| `components/layout/ModulePrefsContext.tsx` | `ModulePrefsProvider` + `useModulePrefs()` — guarda módulos (`module_prefs_*`) e flags (`feature_prefs_*`) em `localStorage` por `user.id` |
+| `app/configuracoes/page.tsx` | Switches por módulo + seção **Comportamento** (flags) |
 | `Sidebar` / `BottomNav` | Consomem `isEnabled(key)` e ocultam módulos desativados em tempo real |
+
+A seção **Comportamento** usa `isFeatureOn(key, defaultOn)` / `toggleFeature(key, defaultOn)`. Hoje há um flag:
+**Comissão automática** (`FEATURE_AUTO_COMMISSION`, default ligado) — ver Sincronização de Comissão.
 
 - Apenas **Configurações** tem `toggleable: false` (sempre visível, para o utilizador conseguir reativar módulos). **Dashboard**, Lançamentos, Relatórios e Finanças são todos ativáveis.
 - Preferência de **UI** (não dado de negócio): fica no dispositivo via `localStorage` (`module_prefs_<userId>`), evitando flicker e round-trip ao banco. O `ModulePrefsProvider` envolve a árvore em `ConditionalLayout`.
@@ -458,6 +461,11 @@ O `ExpensePanel` separa visualmente despesas CC na seção "Fatura do Cartão".
 - Busca OS com `status='Pago'` do mês, calcula comissão via `calculateCommission()`
 - Se já existe entrada `is_commission=true` no mês: faz UPDATE do valor
 - Se não existe: INSERT de nova entrada "Comissão do Mês" na categoria "Comissão"
+
+**Flag "Comissão automática" (`FEATURE_AUTO_COMMISSION`, Configurações → Comportamento):**
+- **Ligado** (default): `syncCommission` roda no load de `/financas` e o "Inicializar Mês" recria a comissão.
+- **Desligado**: `syncCommission` **não** roda no load; `initializeMonth(competencia, true)` passa `skipCommission` e **não** copia a `is_commission`. A entrada existente permanece e **pode ser apagada** — só volta a ser criada ao reativar o flag.
+- É preferência de dispositivo (`localStorage`): em multi-dispositivo, um aparelho com o flag ligado pode ressincronizar.
 
 ### Status de Saúde Financeira
 | Cor | Condição |

@@ -20,6 +20,8 @@ import {
   getFinanceCompetencias, getCreditCards, getBudgetCategories,
 } from "@/lib/finance-db";
 import { computeFinanceSummary, computeCardInvoices, computeBudgetEnvelopes } from "@/lib/finance";
+import { useModulePrefs } from "@/components/layout/ModulePrefsContext";
+import { FEATURE_AUTO_COMMISSION } from "@/lib/modules";
 import { getCurrentCompetencia, formatMonthYear } from "@/lib/utils";
 import { toast } from "@/lib/use-toast";
 import type { IncomeEntry, ExpenseEntry, BudgetSettings, CreditCard, BudgetCategory } from "@/lib/finance";
@@ -39,13 +41,17 @@ export default function FinancasPage() {
   const [ofxOpen, setOfxOpen] = useState(false);
   const [limitInput, setLimitInput] = useState("");
 
+  const { isFeatureOn } = useModulePrefs();
+  const autoCommission = isFeatureOn(FEATURE_AUTO_COMMISSION, true);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
       // Otimização: syncCommission roda EM PARALELO com as buscas independentes.
       // getIncomes vem logo depois pois precisa refletir a comissão já sincronizada.
+      // Só sincroniza se a "Comissão automática" estiver ligada (Configurações).
       const [, comps, exp, bdg, cards, cats] = await Promise.all([
-        syncCommission(competencia).catch(() => {}),
+        autoCommission ? syncCommission(competencia).catch(() => {}) : Promise.resolve(),
         getFinanceCompetencias(),
         getExpenses(competencia),
         getBudgetSettings(competencia),
@@ -64,15 +70,17 @@ export default function FinancasPage() {
     } finally {
       setLoading(false);
     }
-  }, [competencia]);
+  }, [competencia, autoCommission]);
 
   useEffect(() => { load(); }, [load]);
 
   async function handleInitMonth() {
     setInitializing(true);
     try {
-      await syncCommission(competencia);
-      const { incomes: i, expenses: e } = await initializeMonth(competencia);
+      if (autoCommission) await syncCommission(competencia);
+      // skipCommission = true quando a comissão automática está desligada,
+      // para não recriar a "Comissão do Mês" ao copiar entradas recorrentes.
+      const { incomes: i, expenses: e } = await initializeMonth(competencia, !autoCommission);
       toast({ title: `Mês inicializado: ${i} receitas + ${e} despesas copiadas`, variant: "success" });
       load();
     } catch {

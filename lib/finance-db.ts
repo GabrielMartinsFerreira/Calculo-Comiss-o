@@ -343,7 +343,10 @@ const DEFAULT_EXPENSES = [
   { description: "Convênio Médico", category: "Saúde",      type: "Fixo", amount: 372.00, due_day: 10, is_recurring: true, payment_method: "Dinheiro" },
 ] as const;
 
-export async function initializeMonth(competencia: string): Promise<{ incomes: number; expenses: number }> {
+export async function initializeMonth(
+  competencia: string,
+  skipCommission = false, // quando true, não copia a "Comissão do Mês" (is_commission)
+): Promise<{ incomes: number; expenses: number }> {
   const { data: existingInc } = await supabase
     .from("income_entries").select("description").eq("competencia", competencia);
   const { data: existingExp } = await supabase
@@ -363,6 +366,7 @@ export async function initializeMonth(competencia: string): Promise<{ incomes: n
   if (recurringIncomes && recurringIncomes.length > 0) {
     newIncomes = recurringIncomes
       .filter((i: { description: string; is_commission: boolean }) =>
+        !(skipCommission && i.is_commission) &&
         !existingIncDescriptions.has(i.description) && !seenInc.has(i.description) && !seenInc.add(i.description))
       .map(({ id: _id, created_at: _ca, updated_at: _ua, competencia: _c, loan_id: _l, user_id: _u, ...rest }: Record<string, unknown>) => ({
         ...rest, competencia, status: "Pendente",
@@ -370,7 +374,7 @@ export async function initializeMonth(competencia: string): Promise<{ incomes: n
       }));
   } else {
     newIncomes = DEFAULT_INCOMES
-      .filter(i => !existingIncDescriptions.has(i.description))
+      .filter(i => !(skipCommission && i.is_commission) && !existingIncDescriptions.has(i.description))
       .map(i => ({ ...i, competencia, status: "Pendente" }));
   }
 

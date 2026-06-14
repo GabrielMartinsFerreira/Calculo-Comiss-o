@@ -33,3 +33,25 @@ export function defaultModulePrefs(): ModulePrefs {
   for (const m of TOGGLEABLE_MODULES) prefs[m.key] = true;
   return prefs;
 }
+
+// ── Flags de comportamento (geridas em /configuracoes) ────────
+
+export interface FeatureDef {
+  key: string;
+  label: string;
+  description: string;
+  defaultOn: boolean;
+}
+
+/** Comissão automática: lança/atualiza a "Comissão do Mês" nas receitas. */
+export const FEATURE_AUTO_COMMISSION = "auto_commission";
+
+export const FEATURES: FeatureDef[] = [
+  {
+    key: FEATURE_AUTO_COMMISSION,
+    label: "Comissão automática nas receitas",
+    description:
+      "Lança e atualiza a “Comissão do Mês” nas receitas a partir das OS pagas. Se desativar, a comissão existente permanece (e pode ser apagada) e não volta até reativar.",
+    defaultOn: true,
+  },
+];

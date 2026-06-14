@@ -2,19 +2,26 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { MODULES, defaultModulePrefs, type ModulePrefs } from "@/lib/modules";
 
+type FeatureFlags = Record<string, boolean>;
+
 interface ModulePrefsValue {
   prefs: ModulePrefs;
   ready: boolean;
   toggle: (moduleKey: string) => void;
   isEnabled: (moduleKey: string) => boolean;
+  // Flags de comportamento (ex.: comissão automática) — também por dispositivo/utilizador
+  isFeatureOn: (key: string, defaultOn?: boolean) => boolean;
+  toggleFeature: (key: string, defaultOn?: boolean) => void;
 }
 
 const ModulePrefsContext = createContext<ModulePrefsValue | null>(null);
 
 /**
- * Guarda a preferência de módulos visíveis em localStorage, por utilizador.
- * É uma preferência de UI (não dado de negócio) — fica no dispositivo, o que
- * evita flicker e um round-trip ao banco a cada navegação.
+ * Guarda preferências de UI/comportamento em localStorage, por utilizador:
+ *  - módulos visíveis no menu (`module_prefs_<userId>`)
+ *  - flags de comportamento (`feature_prefs_<userId>`)
+ * São preferências do dispositivo (não dado de negócio) — evitam flicker e
+ * round-trip ao banco a cada navegação.
  */
 export function ModulePrefsProvider({
   userId,
@@ -24,35 +31,57 @@ export function ModulePrefsProvider({
   children: React.ReactNode;
 }) {
   const [prefs, setPrefs] = useState<ModulePrefs>(defaultModulePrefs());
+  const [features, setFeatures] = useState<FeatureFlags>({});
   const [ready, setReady] = useState(false);
-  const storageKey = `module_prefs_${userId ?? "anon"}`;
+  const moduleKey  = `module_prefs_${userId ?? "anon"}`;
+  const featureKey = `feature_prefs_${userId ?? "anon"}`;
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(storageKey);
+      const raw = localStorage.getItem(moduleKey);
       setPrefs(raw ? { ...defaultModulePrefs(), ...JSON.parse(raw) } : defaultModulePrefs());
     } catch {
       setPrefs(defaultModulePrefs());
     }
+    try {
+      const raw = localStorage.getItem(featureKey);
+      setFeatures(raw ? JSON.parse(raw) : {});
+    } catch {
+      setFeatures({});
+    }
     setReady(true);
-  }, [storageKey]);
+  }, [moduleKey, featureKey]);
 
-  const toggle = useCallback((moduleKey: string) => {
+  const toggle = useCallback((key: string) => {
     setPrefs((prev) => {
-      const next = { ...prev, [moduleKey]: prev[moduleKey] === false }; // inverte
-      try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch {}
+      const next = { ...prev, [key]: prev[key] === false }; // inverte
+      try { localStorage.setItem(moduleKey, JSON.stringify(next)); } catch {}
       return next;
     });
-  }, [storageKey]);
+  }, [moduleKey]);
 
-  const isEnabled = useCallback((moduleKey: string) => {
-    const mod = MODULES.find((m) => m.key === moduleKey);
+  const isEnabled = useCallback((key: string) => {
+    const mod = MODULES.find((m) => m.key === key);
     if (mod && !mod.toggleable) return true; // sempre visível
-    return prefs[moduleKey] !== false;
+    return prefs[key] !== false;
   }, [prefs]);
 
+  const isFeatureOn = useCallback((key: string, defaultOn = true) => {
+    const v = features[key];
+    return v === undefined ? defaultOn : v;
+  }, [features]);
+
+  const toggleFeature = useCallback((key: string, defaultOn = true) => {
+    setFeatures((prev) => {
+      const current = prev[key] === undefined ? defaultOn : prev[key];
+      const next = { ...prev, [key]: !current };
+      try { localStorage.setItem(featureKey, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, [featureKey]);
+
   return (
-    <ModulePrefsContext.Provider value={{ prefs, ready, toggle, isEnabled }}>
+    <ModulePrefsContext.Provider value={{ prefs, ready, toggle, isEnabled, isFeatureOn, toggleFeature }}>
       {children}
     </ModulePrefsContext.Provider>
   );
