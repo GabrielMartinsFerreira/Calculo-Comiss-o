@@ -79,8 +79,9 @@ A função `set_user_id()` (SECURITY DEFINER) preenche `user_id = auth.uid()` au
 7. `007_saas_evolutions.sql` — assinaturas, cartões de crédito, orçamentos por categoria, `external_id` (OFX)
 8. `008_security_invoker_views.sql` — views `monthly_summary`/`monthly_finance_summary` com `security_invoker` (respeitam o RLS de quem consulta)
 9. `009_fix_service_orders_rls.sql` — **reativa o RLS em `service_orders`** (estava desligado → global) + índices `(user_id, competencia)`
-10. Criar conta em Authentication → Users
-11. Executar os UPDATE comentados em `004_auth_rls.sql` para migrar dados existentes para o `user_id`
+10. `010_force_service_orders_isolation.sql` — apaga **todas** as políticas de `service_orders` (qualquer nome) e recria só `user_own` — a 009 não pegou uma política permissiva remanescente
+11. Criar conta em Authentication → Users
+12. Executar os UPDATE comentados em `004_auth_rls.sql` para migrar dados existentes para o `user_id`
 
 > ⚠️ **Lição (009):** RLS pode ficar **desativado** numa tabela mesmo com a política `user_own` existindo — a política só vale se `relrowsecurity = true`. Verifique com:
 > `SELECT relname, relrowsecurity FROM pg_class WHERE relname = 'service_orders';`
@@ -577,7 +578,8 @@ A comissão "prevista" considera todas as OS. A "real" considera apenas as `stat
     ├── 006_fix_rls_backfill.sql      # Backfill user_id=NULL (executar 1x após criar conta)
     ├── 007_saas_evolutions.sql       # subscriptions, credit_cards, budget_categories, external_id (OFX)
     ├── 008_security_invoker_views.sql # views com security_invoker (respeitam RLS)
-    └── 009_fix_service_orders_rls.sql # reativa RLS em service_orders + índices (user_id, competencia)
+    ├── 009_fix_service_orders_rls.sql # reativa RLS em service_orders + índices (user_id, competencia)
+    └── 010_force_service_orders_isolation.sql # drop dinâmico de todas as policies + recria user_own
 ```
 
 ---
