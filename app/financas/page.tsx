@@ -41,7 +41,7 @@ export default function FinancasPage() {
   const [ofxOpen, setOfxOpen] = useState(false);
   const [limitInput, setLimitInput] = useState("");
 
-  const { isFeatureOn } = useModulePrefs();
+  const { isFeatureOn, ready: prefsReady } = useModulePrefs();
   const autoCommission = isFeatureOn(FEATURE_AUTO_COMMISSION, true);
 
   const load = useCallback(async () => {
@@ -72,7 +72,9 @@ export default function FinancasPage() {
     }
   }, [competencia, autoCommission]);
 
-  useEffect(() => { load(); }, [load]);
+  // Espera as flags de comportamento (banco) carregarem antes do 1º load,
+  // para não rodar syncCommission com o valor padrão antes de saber a preferência da conta.
+  useEffect(() => { if (prefsReady) load(); }, [load, prefsReady]);
 
   async function handleInitMonth() {
     setInitializing(true);

@@ -80,8 +80,9 @@ A função `set_user_id()` (SECURITY DEFINER) preenche `user_id = auth.uid()` au
 8. `008_security_invoker_views.sql` — views `monthly_summary`/`monthly_finance_summary` com `security_invoker` (respeitam o RLS de quem consulta)
 9. `009_fix_service_orders_rls.sql` — **reativa o RLS em `service_orders`** (estava desligado → global) + índices `(user_id, competencia)`
 10. `010_force_service_orders_isolation.sql` — apaga **todas** as políticas de `service_orders` (qualquer nome) e recria só `user_own` — a 009 não pegou uma política permissiva remanescente
-11. Criar conta em Authentication → Users
-12. Executar os UPDATE comentados em `004_auth_rls.sql` para migrar dados existentes para o `user_id`
+11. `011_user_preferences.sql` — tabela `user_preferences` (JSONB) para flags de comportamento por conta (RLS `user_own`)
+12. Criar conta em Authentication → Users
+13. Executar os UPDATE comentados em `004_auth_rls.sql` para migrar dados existentes para o `user_id`
 
 > ⚠️ **Lição (009):** RLS pode ficar **desativado** numa tabela mesmo com a política `user_own` existindo — a política só vale se `relrowsecurity = true`. Verifique com:
 > `SELECT relname, relrowsecurity FROM pg_class WHERE relname = 'service_orders';`
@@ -187,12 +188,16 @@ Permite ao utilizador escolher quais módulos aparecem no menu (experiência mod
 | Peça | Papel |
 |------|-------|
 | `lib/modules.ts` | Fonte única dos módulos (`MODULES`) **e flags de comportamento** (`FEATURES`, ex.: `FEATURE_AUTO_COMMISSION`) |
-| `components/layout/ModulePrefsContext.tsx` | `ModulePrefsProvider` + `useModulePrefs()` — guarda módulos (`module_prefs_*`) e flags (`feature_prefs_*`) em `localStorage` por `user.id` |
+| `components/layout/ModulePrefsContext.tsx` | `ModulePrefsProvider` + `useModulePrefs()` — **módulos** em `localStorage` (dispositivo); **flags de comportamento** no banco (`user_preferences`, sincroniza entre aparelhos) |
+| `lib/preferences-db.ts` | `getUserPreferences()` / `saveUserPreferences()` — JSONB em `user_preferences` |
 | `app/configuracoes/page.tsx` | Switches por módulo + seção **Comportamento** (flags) |
 | `Sidebar` / `BottomNav` | Consomem `isEnabled(key)` e ocultam módulos desativados em tempo real |
 
-A seção **Comportamento** usa `isFeatureOn(key, defaultOn)` / `toggleFeature(key, defaultOn)`. Hoje há um flag:
-**Comissão automática** (`FEATURE_AUTO_COMMISSION`, default ligado) — ver Sincronização de Comissão.
+Duas naturezas de preferência:
+- **Módulos visíveis** = LAYOUT → `localStorage` por dispositivo (instantâneo, sem round-trip).
+- **Flags de comportamento** = CONTA → tabela `user_preferences` (JSONB), sincronizadas entre aparelhos. `ready` do contexto só fica `true` após carregar as flags do banco; a página de Finanças espera `ready` antes do 1º load.
+
+Flag atual: **Comissão automática** (`FEATURE_AUTO_COMMISSION`, default ligado) — ver Sincronização de Comissão.
 
 - Apenas **Configurações** tem `toggleable: false` (sempre visível, para o utilizador conseguir reativar módulos). **Dashboard**, Lançamentos, Relatórios e Finanças são todos ativáveis.
 - Preferência de **UI** (não dado de negócio): fica no dispositivo via `localStorage` (`module_prefs_<userId>`), evitando flicker e round-trip ao banco. O `ModulePrefsProvider` envolve a árvore em `ConditionalLayout`.
@@ -465,7 +470,7 @@ O `ExpensePanel` separa visualmente despesas CC na seção "Fatura do Cartão".
 **Flag "Comissão automática" (`FEATURE_AUTO_COMMISSION`, Configurações → Comportamento):**
 - **Ligado** (default): `syncCommission` roda no load de `/financas` e o "Inicializar Mês" recria a comissão.
 - **Desligado**: `syncCommission` **não** roda no load; `initializeMonth(competencia, true)` passa `skipCommission` e **não** copia a `is_commission`. A entrada existente permanece e **pode ser apagada** — só volta a ser criada ao reativar o flag.
-- É preferência de dispositivo (`localStorage`): em multi-dispositivo, um aparelho com o flag ligado pode ressincronizar.
+- É preferência de **conta** (tabela `user_preferences`, JSONB) — **sincroniza entre aparelhos** (migração 011).
 
 ### Status de Saúde Financeira
 | Cor | Condição |
@@ -587,7 +592,8 @@ A comissão "prevista" considera todas as OS. A "real" considera apenas as `stat
     ├── 007_saas_evolutions.sql       # subscriptions, credit_cards, budget_categories, external_id (OFX)
     ├── 008_security_invoker_views.sql # views com security_invoker (respeitam RLS)
     ├── 009_fix_service_orders_rls.sql # reativa RLS em service_orders + índices (user_id, competencia)
-    └── 010_force_service_orders_isolation.sql # drop dinâmico de todas as policies + recria user_own
+    ├── 010_force_service_orders_isolation.sql # drop dinâmico de todas as policies + recria user_own
+    └── 011_user_preferences.sql       # tabela user_preferences (JSONB) — flags por conta
 ```
 
 ---

@@ -1,15 +1,15 @@
 "use client";
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { MODULES, defaultModulePrefs, type ModulePrefs } from "@/lib/modules";
+import { getUserPreferences, saveUserPreferences } from "@/lib/preferences-db";
 
 type FeatureFlags = Record<string, boolean>;
 
 interface ModulePrefsValue {
   prefs: ModulePrefs;
-  ready: boolean;
+  ready: boolean; // true após carregar as flags de comportamento do banco
   toggle: (moduleKey: string) => void;
   isEnabled: (moduleKey: string) => boolean;
-  // Flags de comportamento (ex.: comissão automática) — também por dispositivo/utilizador
   isFeatureOn: (key: string, defaultOn?: boolean) => boolean;
   toggleFeature: (key: string, defaultOn?: boolean) => void;
 }
@@ -17,11 +17,11 @@ interface ModulePrefsValue {
 const ModulePrefsContext = createContext<ModulePrefsValue | null>(null);
 
 /**
- * Guarda preferências de UI/comportamento em localStorage, por utilizador:
- *  - módulos visíveis no menu (`module_prefs_<userId>`)
- *  - flags de comportamento (`feature_prefs_<userId>`)
- * São preferências do dispositivo (não dado de negócio) — evitam flicker e
- * round-trip ao banco a cada navegação.
+ * Duas naturezas de preferência:
+ *  - **Módulos visíveis**: preferência de LAYOUT → fica no dispositivo (`localStorage`),
+ *    instantânea e sem round-trip.
+ *  - **Flags de comportamento** (ex.: comissão automática): preferência de CONTA →
+ *    fica no banco (`user_preferences`) e **sincroniza entre aparelhos**.
  */
 export function ModulePrefsProvider({
   userId,
@@ -33,9 +33,9 @@ export function ModulePrefsProvider({
   const [prefs, setPrefs] = useState<ModulePrefs>(defaultModulePrefs());
   const [features, setFeatures] = useState<FeatureFlags>({});
   const [ready, setReady] = useState(false);
-  const moduleKey  = `module_prefs_${userId ?? "anon"}`;
-  const featureKey = `feature_prefs_${userId ?? "anon"}`;
+  const moduleKey = `module_prefs_${userId ?? "anon"}`;
 
+  // Módulos: localStorage (instantâneo, por dispositivo)
   useEffect(() => {
     try {
       const raw = localStorage.getItem(moduleKey);
@@ -43,14 +43,18 @@ export function ModulePrefsProvider({
     } catch {
       setPrefs(defaultModulePrefs());
     }
-    try {
-      const raw = localStorage.getItem(featureKey);
-      setFeatures(raw ? JSON.parse(raw) : {});
-    } catch {
-      setFeatures({});
-    }
-    setReady(true);
-  }, [moduleKey, featureKey]);
+  }, [moduleKey]);
+
+  // Flags de comportamento: banco (sincroniza entre aparelhos)
+  useEffect(() => {
+    let active = true;
+    setReady(false);
+    getUserPreferences()
+      .then((p) => { if (active) setFeatures(p.features ?? {}); })
+      .catch(() => { if (active) setFeatures({}); })
+      .finally(() => { if (active) setReady(true); });
+    return () => { active = false; };
+  }, [userId]);
 
   const toggle = useCallback((key: string) => {
     setPrefs((prev) => {
@@ -75,10 +79,11 @@ export function ModulePrefsProvider({
     setFeatures((prev) => {
       const current = prev[key] === undefined ? defaultOn : prev[key];
       const next = { ...prev, [key]: !current };
-      try { localStorage.setItem(featureKey, JSON.stringify(next)); } catch {}
+      // Persiste na conta (otimista: a UI já reflete; o banco recebe em seguida)
+      saveUserPreferences({ features: next }).catch(() => {});
       return next;
     });
-  }, [featureKey]);
+  }, []);
 
   return (
     <ModulePrefsContext.Provider value={{ prefs, ready, toggle, isEnabled, isFeatureOn, toggleFeature }}>
