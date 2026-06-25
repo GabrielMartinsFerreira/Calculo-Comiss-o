@@ -36,7 +36,7 @@ Aplicação web para controle e cálculo de comissões comerciais mensais, com m
 ### Gate de Assinatura (Multi-Tenant SaaS)
 O `middleware.ts` faz dois níveis de verificação:
 1. **Sessão** (rápido, sem rede): presença do cookie `sb-*-auth-token` → redireciona `/login`.
-2. **Assinatura** (só em `/financas`, `/lancamentos`, `/relatorios`): consulta `subscriptions` via
+2. **Assinatura** (em `/financas`, `/lancamentos`, `/relatorios`, `/assinaturas`): consulta `subscriptions` via
    `createMiddlewareClient`. Se não estiver `active`/`trial` (ou o período expirou), redireciona `/checkout`.
 
 - A decisão é uma função **pura** `isSubscriptionActive()` (reutilizada no cliente e no edge).
@@ -81,8 +81,9 @@ A função `set_user_id()` (SECURITY DEFINER) preenche `user_id = auth.uid()` au
 9. `009_fix_service_orders_rls.sql` — **reativa o RLS em `service_orders`** (estava desligado → global) + índices `(user_id, competencia)`
 10. `010_force_service_orders_isolation.sql` — apaga **todas** as políticas de `service_orders` (qualquer nome) e recria só `user_own` — a 009 não pegou uma política permissiva remanescente
 11. `011_user_preferences.sql` — tabela `user_preferences` (JSONB) para flags de comportamento por conta (RLS `user_own`)
-12. Criar conta em Authentication → Users
-13. Executar os UPDATE comentados em `004_auth_rls.sql` para migrar dados existentes para o `user_id`
+12. `012_recurring_services.sql` — tabela `recurring_services` (assinaturas pessoais: Netflix, Spotify, etc.) + coluna `expense_entries.recurring_service_id` (FK) — RLS `user_own`
+13. Criar conta em Authentication → Users
+14. Executar os UPDATE comentados em `004_auth_rls.sql` para migrar dados existentes para o `user_id`
 
 > ⚠️ **Lição (009):** RLS pode ficar **desativado** numa tabela mesmo com a política `user_own` existindo — a política só vale se `relrowsecurity = true`. Verifique com:
 > `SELECT relname, relrowsecurity FROM pg_class WHERE relname = 'service_orders';`
@@ -199,7 +200,29 @@ Duas naturezas de preferência:
 
 Flag atual: **Comissão automática** (`FEATURE_AUTO_COMMISSION`, default ligado) — ver Sincronização de Comissão.
 
-- Apenas **Configurações** tem `toggleable: false` (sempre visível, para o utilizador conseguir reativar módulos). **Dashboard**, Lançamentos, Relatórios, Finanças e **Tutorial** são todos ativáveis.
+- Apenas **Configurações** tem `toggleable: false` (sempre visível, para o utilizador conseguir reativar módulos). **Dashboard**, Lançamentos, Relatórios, Finanças, **Assinaturas** e **Tutorial** são todos ativáveis.
+
+### Página de Assinaturas (`/assinaturas`)
+CRUD de serviços recorrentes no cartão de crédito (Netflix, Spotify, planos de saúde, etc.), registrado em `MODULES` como `assinaturas` (ícone `Repeat2`).
+- `app/assinaturas/page.tsx` — client component com grid responsivo de cards; 3 KPIs (total mensal, ativos, total de serviços).
+- Cada card exibe: nome, valor, categoria, dia de cobrança, cartão vinculado e status (Ativo/Pausado).
+- **Botão "Aplicar ao mês"**: chama `syncRecurringServicesToMonth(competencia)` que gera despesas em `expense_entries` para o mês atual — idempotente, pode ser chamado mais de uma vez com segurança.
+- **Automação**: `initializeMonth` também chama `syncRecurringServicesToMonth` internamente (fail-open), portanto ao inicializar um novo mês em `/financas`, as despesas de assinatura são criadas automaticamente.
+- Toggle Pausar/Reativar inline nos cards (sem abrir modal).
+- Modal de edição usa `useEffect` para hidratar os campos ao abrir (`open` + `editing?.id` como deps).
+- Protegida pelo gate de assinatura (`/assinaturas` em `PROTECTED_PREFIXES` de `lib/subscription.ts`).
+
+### Correção de Hidratação de Formulários (bug fix)
+**Problema:** `OSForm` e `EntryFormModal` são montados fora do `DialogContent` (uma vez ao nível da página) — `useState` lazy initializer só corre no primeiro mount. Ao clicar "Editar" num registro diferente sem fechar o diálogo, o formulário mostrava valores do registro anterior ou valores vazios.
+
+**Solução aplicada:** `useEffect` que chama `setForm(...)` sempre que `open` ou `editing?.id` muda, garantindo hidratação completa ao abrir o diálogo:
+```ts
+useEffect(() => {
+  if (!open) return;
+  setForm(editing ? { /* campos do registro */ } : /* valores padrão */);
+}, [open, editing?.id]);
+```
+Padrão aplicado em: `OSForm.tsx`, `EntryFormModal.tsx`, `RecurringServiceModal` (assinaturas).
 
 ### Página de Tutorial (`/tutorial`)
 Onboarding/documentação para o utilizador final, registrado em `MODULES` (`lib/modules.ts`).
@@ -400,7 +423,30 @@ O `ExpensePanel` separa visualmente despesas CC na seção "Fatura do Cartão".
 
 ---
 
-### Tabela: `subscriptions` (Evolução A)
+### Tabela: `recurring_services` (Migração 012)
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| `id` | uuid PK | Identificador |
+| `user_id` | uuid | Preenchido pelo trigger RLS |
+| `service_name` | text NOT NULL | Nome do serviço (ex: "Netflix", "Spotify") |
+| `amount` | numeric(12,2) | Valor da cobrança mensal |
+| `billing_day` | integer 1–31 | Dia do mês em que a cobrança ocorre |
+| `credit_card_id` | uuid | FK opcional para `credit_cards` |
+| `category` | text | Mesmas categorias de `expense_entries` (default: 'Assinatura') |
+| `status` | text | 'Ativo' \| 'Pausado' — só os Ativos geram lançamentos |
+| `created_at` | timestamptz | Data de criação |
+| `updated_at` | timestamptz | Atualizado automaticamente pelo trigger |
+
+**Coluna adicionada em `expense_entries`:** `recurring_service_id uuid` — FK para `recurring_services` (ON DELETE SET NULL). Permite dedup por `(recurring_service_id, competencia)` e rastrear a origem de cada despesa gerada.
+
+**Automação:** `syncRecurringServicesToMonth(competencia)` em `lib/finance-db.ts` gera despesas de todos os serviços Ativos no mês informado (idempotente). É chamado automaticamente por `initializeMonth` (fail-open) e manualmente pelo botão "Aplicar ao mês" em `/assinaturas`.
+
+**⚠️ Naming:** a tabela `subscriptions` já existe para gestão SaaS (migração 007). Este módulo usa `recurring_services` para não colidir.
+
+---
+
+### Tabela: `subscriptions` (Evolução A / SaaS)
 
 | Coluna | Tipo | Descrição |
 |--------|------|-----------|
@@ -520,6 +566,7 @@ A comissão "prevista" considera todas as OS. A "real" considera apenas as `stat
 │   ├── lancamentos/page.tsx          # CRUD de Ordens de Serviço
 │   ├── relatorios/page.tsx           # Gráficos e histórico mensal
 │   ├── financas/page.tsx             # Gestão financeira pessoal
+│   ├── assinaturas/page.tsx          # CRUD de serviços recorrentes no cartão (Netflix, Spotify…) — sync mensal
 │   ├── tutorial/page.tsx             # Onboarding/guia — passo a passo de cada módulo (tabs + acordeões)
 │   ├── configuracoes/page.tsx        # Configurações de Módulos (toggles do menu)
 │   ├── checkout/page.tsx             # Gestão de plano / assinatura (Stripe)
@@ -565,6 +612,7 @@ A comissão "prevista" considera todas as OS. A "real" considera apenas as `stat
 │   ├── ofx-parser.ts                 # parseOfx() + ofxToExpenseInserts/ofxToIncomeInserts
 │   ├── finance.ts                    # Interfaces: IncomeEntry, ExpenseEntry, PersonalLoan, BudgetSettings
 │   │                                 # + CreditCard, CardInvoice, BudgetCategory, BudgetEnvelope
+│   │                                 # + RecurringService, RecurringServiceInsert (migração 012)
 │   │                                 # + computeFinanceSummary(), computeCardInvoices(), computeBudgetEnvelopes()
 │   ├── commission.ts                 # COMMISSION_BRACKETS + calculateCommission()
 │   ├── supabase.ts                   # createBrowserClient + signIn, signOut, getUser
@@ -577,6 +625,8 @@ A comissão "prevista" considera todas as OS. A "real" considera apenas as `stat
 │   │                                 # + fetchCommissionForMonth, syncCommission
 │   │                                 # + createLoan, receiveInstallment
 │   │                                 # + initializeMonth, getFinanceCompetencias
+│   │                                 # + getRecurringServices, createRecurringService, updateRecurringService
+│   │                                 # + deleteRecurringService, syncRecurringServicesToMonth
 │   ├── utils.ts                      # formatCurrency, formatDate, formatMonthYear
 │   │                                 # + getCurrentCompetencia, cn
 │   └── use-toast.ts                  # Hook de notificações toast
