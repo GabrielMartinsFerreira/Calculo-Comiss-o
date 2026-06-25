@@ -70,6 +70,52 @@ export function EntryFormModal({
     }
   }, [open, mode]);
 
+  // Reinicializa o formulário sempre que o diálogo abre ou o alvo de edição muda.
+  // Necessário porque o componente é montado uma vez fora do DialogContent.
+  useEffect(() => {
+    if (!open) return;
+    if (editingIncome) {
+      setForm({
+        description: editingIncome.description,
+        category: editingIncome.category,
+        type: editingIncome.type,
+        amount: String(editingIncome.amount),
+        due_description: editingIncome.due_description ?? "",
+        due_day: "",
+        is_recurring: editingIncome.is_recurring,
+        status: editingIncome.status,
+        payment_method: "Dinheiro" as PaymentMethod,
+        credit_card_id: null,
+      });
+    } else if (editingExpense) {
+      setForm({
+        description: editingExpense.description,
+        category: editingExpense.category,
+        type: editingExpense.type,
+        amount: String(editingExpense.amount),
+        due_description: "",
+        due_day: String(editingExpense.due_day ?? ""),
+        is_recurring: editingExpense.is_recurring,
+        status: editingExpense.status,
+        payment_method: (editingExpense.payment_method ?? "Dinheiro") as PaymentMethod,
+        credit_card_id: editingExpense.credit_card_id ?? null,
+      });
+    } else {
+      setForm({
+        description: "",
+        category: isIncome ? "Salário" : "Outro",
+        type: "Fixo",
+        amount: "",
+        due_description: "",
+        due_day: "",
+        is_recurring: false,
+        status: "Pendente",
+        payment_method: "Dinheiro" as PaymentMethod,
+        credit_card_id: null,
+      });
+    }
+  }, [open, editingIncome?.id, editingExpense?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // A entrada de empréstimo só existe na criação (não na edição)
   const isLoan = isIncome && !isEditing && form.category === "Empréstimo";
 

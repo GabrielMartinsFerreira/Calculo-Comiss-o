@@ -1,4 +1,4 @@
-import { LayoutDashboard, FileText, BarChart2, Wallet, Settings2, BookOpen, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, FileText, BarChart2, Wallet, Settings2, BookOpen, Repeat2, type LucideIcon } from "lucide-react";
 
 /**
  * Definição central dos módulos de navegação. Fonte única para a Sidebar,
@@ -20,6 +20,7 @@ export const MODULES: ModuleDef[] = [
   { key: "lancamentos",   href: "/lancamentos",   label: "Lançamentos",   icon: FileText,        toggleable: true,  description: "Ordens de serviço e comissões" },
   { key: "relatorios",    href: "/relatorios",    label: "Relatórios",    icon: BarChart2,       toggleable: true,  description: "Gráficos e histórico mensal" },
   { key: "financas",      href: "/financas",      label: "Finanças",      icon: Wallet,          toggleable: true,  description: "Gestão financeira pessoal" },
+  { key: "assinaturas",   href: "/assinaturas",   label: "Assinaturas",   icon: Repeat2,         toggleable: true,  description: "Serviços recorrentes e débitos automáticos" },
   { key: "tutorial",      href: "/tutorial",      label: "Tutorial",      icon: BookOpen,        toggleable: true,  description: "Guia de uso de cada módulo" },
   { key: "configuracoes", href: "/configuracoes", label: "Configurações", icon: Settings2,       toggleable: false, description: "Preferências da conta" },
 ];

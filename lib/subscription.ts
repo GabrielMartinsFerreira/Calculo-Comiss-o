@@ -10,7 +10,7 @@ import type { SubscriptionGate } from "./types";
  * o Dashboard funciona como vitrine e o checkout precisa ser alcançável
  * mesmo com a assinatura vencida.
  */
-export const PROTECTED_PREFIXES = ["/financas", "/lancamentos", "/relatorios"] as const;
+export const PROTECTED_PREFIXES = ["/financas", "/lancamentos", "/relatorios", "/assinaturas"] as const;
 
 export function isProtectedPath(pathname: string): boolean {
   return PROTECTED_PREFIXES.some(

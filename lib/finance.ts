@@ -51,8 +51,9 @@ export interface ExpenseEntry {
   is_recurring: boolean;
   payment_method: PaymentMethod;
   status: ExpenseStatus;
-  credit_card_id?: string | null; // FK opcional para credit_cards
-  external_id?: string | null;    // <FITID> do extrato OFX (dedup)
+  credit_card_id?: string | null;         // FK opcional para credit_cards
+  recurring_service_id?: string | null;  // FK opcional para recurring_services
+  external_id?: string | null;           // <FITID> do extrato OFX (dedup)
   created_at: string;
   updated_at: string;
 }
@@ -122,6 +123,28 @@ export interface BudgetEnvelope {
 
 export type IncomeEntryInsert = Omit<IncomeEntry, "id" | "created_at" | "updated_at" | "personal_loans">;
 export type ExpenseEntryInsert = Omit<ExpenseEntry, "id" | "created_at" | "updated_at">;
+
+// ── Serviços Recorrentes / Assinaturas (Migração 012) ────────
+
+export type RecurringServiceStatus = "Ativo" | "Pausado";
+
+export interface RecurringService {
+  id: string;
+  service_name: string;
+  amount: number;
+  billing_day: number;
+  credit_card_id: string | null;
+  category: ExpenseCategory;
+  status: RecurringServiceStatus;
+  created_at: string;
+  updated_at: string;
+  credit_cards?: CreditCard | null; // joined
+}
+
+export type RecurringServiceInsert = Omit<
+  RecurringService,
+  "id" | "created_at" | "updated_at" | "credit_cards"
+>;
 
 export type HealthStatus = "green" | "yellow" | "red";
 

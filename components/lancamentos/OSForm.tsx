@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +35,24 @@ export function OSForm({ open, onOpenChange, order, onSuccess }: OSFormProps) {
   );
   const [loading, setLoading] = useState(false);
   const isEditing = !!order;
+
+  // Reinicializa o formulário sempre que o diálogo abre ou o alvo de edição muda.
+  // Necessário porque o componente é montado uma vez fora do DialogContent.
+  useEffect(() => {
+    if (!open) return;
+    setForm(
+      order
+        ? {
+            os_number: order.os_number,
+            client_name: order.client_name,
+            order_date: order.order_date,
+            order_value: order.order_value.toString(),
+            payment_method: order.payment_method,
+            status: order.status,
+          }
+        : { ...emptyForm, order_date: format(new Date(), "yyyy-MM-dd") }
+    );
+  }, [open, order?.id]);
 
   function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));

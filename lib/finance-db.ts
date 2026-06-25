@@ -5,6 +5,7 @@ import type {
   IncomeEntry, ExpenseEntry, BudgetSettings,
   IncomeEntryInsert, ExpenseEntryInsert, PersonalLoan,
   CreditCard, CreditCardInsert, BudgetCategory,
+  RecurringService, RecurringServiceInsert,
 } from "./finance";
 
 // ── Income ──────────────────────────────────────────────────
@@ -403,7 +404,97 @@ export async function initializeMonth(
     if (error) throw error;
   }
 
+  // Gera despesas dos serviços recorrentes (assinaturas) — fail-open
+  await syncRecurringServicesToMonth(competencia).catch(() => {});
+
   return { incomes: newIncomes.length, expenses: newExpenses.length };
+}
+
+// ── Recurring Services / Assinaturas (Migração 012) ─────────
+
+export async function getRecurringServices(): Promise<RecurringService[]> {
+  const { data, error } = await supabase
+    .from("recurring_services")
+    .select("*, credit_cards(*)")
+    .order("service_name", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as RecurringService[];
+}
+
+export async function createRecurringService(
+  payload: RecurringServiceInsert
+): Promise<RecurringService> {
+  const { data, error } = await supabase
+    .from("recurring_services")
+    .insert(payload)
+    .select("*, credit_cards(*)")
+    .single();
+  if (error) throw error;
+  return data as RecurringService;
+}
+
+export async function updateRecurringService(
+  id: string,
+  updates: Partial<RecurringServiceInsert>
+): Promise<RecurringService> {
+  const { data, error } = await supabase
+    .from("recurring_services")
+    .update(updates)
+    .eq("id", id)
+    .select("*, credit_cards(*)")
+    .single();
+  if (error) throw error;
+  return data as RecurringService;
+}
+
+export async function deleteRecurringService(id: string): Promise<void> {
+  const { error } = await supabase.from("recurring_services").delete().eq("id", id);
+  if (error) throw error;
+}
+
+/**
+ * Gera despesas em `expense_entries` para o mês a partir dos serviços
+ * ativos em `recurring_services`. Dedup por `recurring_service_id +
+ * competencia` — idempotente, pode ser chamado várias vezes com segurança.
+ */
+export async function syncRecurringServicesToMonth(competencia: string): Promise<number> {
+  const services = await getRecurringServices();
+  const active = services.filter((s) => s.status === "Ativo");
+  if (active.length === 0) return 0;
+
+  // IDs de serviços já lançados neste mês
+  const { data: existing } = await supabase
+    .from("expense_entries")
+    .select("recurring_service_id")
+    .eq("competencia", competencia)
+    .not("recurring_service_id", "is", null);
+
+  const existingIds = new Set(
+    (existing ?? [])
+      .map((r: { recurring_service_id: string | null }) => r.recurring_service_id)
+      .filter((x): x is string => !!x)
+  );
+
+  const toInsert = active
+    .filter((s) => !existingIds.has(s.id))
+    .map((s) => ({
+      competencia,
+      description: s.service_name,
+      category: s.category,
+      type: "Fixo" as const,
+      amount: s.amount,
+      due_day: s.billing_day,
+      is_recurring: false, // gerido por recurring_services, não pelo flag genérico
+      payment_method: "Cartão de Crédito" as const,
+      credit_card_id: s.credit_card_id,
+      recurring_service_id: s.id,
+      status: "Pendente" as const,
+    }));
+
+  if (toInsert.length === 0) return 0;
+  const { error } = await supabase.from("expense_entries").insert(toInsert);
+  if (error) throw error;
+  return toInsert.length;
 }
 
 export async function getFinanceCompetencias(): Promise<string[]> {
