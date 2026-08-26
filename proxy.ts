@@ -4,7 +4,7 @@ import { createMiddlewareClient } from "@/lib/supabase-middleware";
 import { isProtectedPath, isSubscriptionActive } from "@/lib/subscription";
 import type { SubscriptionGate } from "@/lib/types";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isLoginPage = pathname === "/login";
   const isCheckoutPage = pathname === "/checkout";
@@ -74,6 +74,17 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // `/api/*` fica de fora: cada rota já valida a própria autenticação
+    // (getUser() no checkout/portal, assinatura HMAC no webhook da Stripe).
+    // O webhook nunca envia cookie de sessão — se passasse pelo gate de
+    // sessão abaixo, seria redirecionado para /login em vez de processado.
+    //
+    // manifest.json/sw.js/workbox-*/swe-worker-* também ficam de fora: são
+    // gerados pelo next-pwa e precisam ser públicos (o browser os busca
+    // antes de qualquer login, para registrar o service worker do PWA).
+    // Sem essa exclusão, um visitante deslogado recebia o HTML de /login
+    // no lugar do script — o registro do service worker falhava com
+    // "Refused to execute script ... MIME type ('text/html')".
+    "/((?!api|_next/static|_next/image|favicon\\.ico|manifest\\.json|sw\\.js|workbox-.*|swe-worker-.*|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

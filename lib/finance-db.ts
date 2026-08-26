@@ -7,6 +7,14 @@ import type {
   CreditCard, CreditCardInsert, BudgetCategory,
   RecurringService, RecurringServiceInsert,
 } from "./finance";
+import {
+  IncomeEntryInsertSchema, IncomeEntryUpdateSchema,
+  ExpenseEntryInsertSchema, ExpenseEntryUpdateSchema,
+  CreditCardInsertSchema, CreditCardUpdateSchema,
+  RecurringServiceInsertSchema, RecurringServiceUpdateSchema,
+  CreateLoanPayloadSchema, BudgetSettingsSchema, BudgetCategorySchema,
+  parseOrThrow,
+} from "./schemas";
 
 // ── Income ──────────────────────────────────────────────────
 
@@ -21,15 +29,17 @@ export async function getIncomes(competencia: string): Promise<IncomeEntry[]> {
 }
 
 export async function createIncome(entry: IncomeEntryInsert): Promise<IncomeEntry> {
+  const validated = parseOrThrow(IncomeEntryInsertSchema, entry);
   const { data, error } = await supabase
-    .from("income_entries").insert(entry).select().single();
+    .from("income_entries").insert(validated).select().single();
   if (error) throw error;
   return data;
 }
 
 export async function updateIncome(id: string, updates: Partial<IncomeEntryInsert>): Promise<IncomeEntry> {
+  const validated = parseOrThrow(IncomeEntryUpdateSchema, updates);
   const { data, error } = await supabase
-    .from("income_entries").update(updates).eq("id", id).select().single();
+    .from("income_entries").update(validated).eq("id", id).select().single();
   if (error) throw error;
   return data;
 }
@@ -53,15 +63,17 @@ export async function getExpenses(competencia: string): Promise<ExpenseEntry[]> 
 }
 
 export async function createExpense(entry: ExpenseEntryInsert): Promise<ExpenseEntry> {
+  const validated = parseOrThrow(ExpenseEntryInsertSchema, entry);
   const { data, error } = await supabase
-    .from("expense_entries").insert(entry).select().single();
+    .from("expense_entries").insert(validated).select().single();
   if (error) throw error;
   return data;
 }
 
 export async function updateExpense(id: string, updates: Partial<ExpenseEntryInsert>): Promise<ExpenseEntry> {
+  const validated = parseOrThrow(ExpenseEntryUpdateSchema, updates);
   const { data, error } = await supabase
-    .from("expense_entries").update(updates).eq("id", id).select().single();
+    .from("expense_entries").update(validated).eq("id", id).select().single();
   if (error) throw error;
   return data;
 }
@@ -84,10 +96,11 @@ export async function upsertBudgetSettings(
   variable_expense_limit: number | null,
   notes?: string
 ): Promise<void> {
+  const validated = parseOrThrow(BudgetSettingsSchema, { variable_expense_limit, notes });
   // unique key passou a ser (user_id, competencia) na migração 007.
   // O trigger set_user_id preenche user_id antes da checagem de conflito.
   const { error } = await supabase.from("budget_settings").upsert(
-    { competencia, variable_expense_limit, notes },
+    { competencia, ...validated },
     { onConflict: "user_id,competencia" }
   );
   if (error) throw error;
@@ -129,9 +142,10 @@ export async function upsertBudgetCategory(
   category_name: string,
   allocated_amount: number
 ): Promise<void> {
+  const validated = parseOrThrow(BudgetCategorySchema, { category_name, allocated_amount });
   const budget_setting_id = await ensureBudgetSetting(competencia);
   const { error } = await supabase.from("budget_categories").upsert(
-    { budget_setting_id, category_name, allocated_amount },
+    { budget_setting_id, ...validated },
     { onConflict: "budget_setting_id,category_name" }
   );
   if (error) throw error;
@@ -154,8 +168,9 @@ export async function getCreditCards(): Promise<CreditCard[]> {
 }
 
 export async function createCreditCard(card: CreditCardInsert): Promise<CreditCard> {
+  const validated = parseOrThrow(CreditCardInsertSchema, card);
   const { data, error } = await supabase
-    .from("credit_cards").insert(card).select().single();
+    .from("credit_cards").insert(validated).select().single();
   if (error) throw error;
   return data as CreditCard;
 }
@@ -164,8 +179,9 @@ export async function updateCreditCard(
   id: string,
   updates: Partial<CreditCardInsert>
 ): Promise<CreditCard> {
+  const validated = parseOrThrow(CreditCardUpdateSchema, updates);
   const { data, error } = await supabase
-    .from("credit_cards").update(updates).eq("id", id).select().single();
+    .from("credit_cards").update(validated).eq("id", id).select().single();
   if (error) throw error;
   return data as CreditCard;
 }
@@ -228,15 +244,16 @@ export interface CreateLoanPayload {
 }
 
 export async function createLoan(payload: CreateLoanPayload, competencia: string): Promise<void> {
+  const validated = parseOrThrow(CreateLoanPayloadSchema, payload);
   const { data: loan, error: e1 } = await supabase
     .from("personal_loans")
     .insert({
-      debtor_name: payload.debtor_name,
-      description: payload.description,
-      installment_amount: payload.installment_amount,
-      total_installments: payload.total_installments,
-      remaining_installments: payload.total_installments,
-      due_day: payload.due_day,
+      debtor_name: validated.debtor_name,
+      description: validated.description,
+      installment_amount: validated.installment_amount,
+      total_installments: validated.total_installments,
+      remaining_installments: validated.total_installments,
+      due_day: validated.due_day,
       status: "Ativo",
       start_competencia: competencia,
     })
@@ -424,9 +441,10 @@ export async function getRecurringServices(): Promise<RecurringService[]> {
 export async function createRecurringService(
   payload: RecurringServiceInsert
 ): Promise<RecurringService> {
+  const validated = parseOrThrow(RecurringServiceInsertSchema, payload);
   const { data, error } = await supabase
     .from("recurring_services")
-    .insert(payload)
+    .insert(validated)
     .select("*, credit_cards(*)")
     .single();
   if (error) throw error;
@@ -437,9 +455,10 @@ export async function updateRecurringService(
   id: string,
   updates: Partial<RecurringServiceInsert>
 ): Promise<RecurringService> {
+  const validated = parseOrThrow(RecurringServiceUpdateSchema, updates);
   const { data, error } = await supabase
     .from("recurring_services")
-    .update(updates)
+    .update(validated)
     .eq("id", id)
     .select("*, credit_cards(*)")
     .single();
@@ -524,9 +543,10 @@ async function existingExternalIds(table: "expense_entries" | "income_entries", 
 
 export async function bulkInsertExpenses(rows: ExpenseEntryInsert[]): Promise<number> {
   if (rows.length === 0) return 0;
-  const ids = rows.map(r => r.external_id).filter((x): x is string => !!x);
+  const validated = rows.map((r) => parseOrThrow(ExpenseEntryInsertSchema, r));
+  const ids = validated.map(r => r.external_id).filter((x): x is string => !!x);
   const existing = await existingExternalIds("expense_entries", ids);
-  const toInsert = rows.filter(r => !r.external_id || !existing.has(r.external_id));
+  const toInsert = validated.filter(r => !r.external_id || !existing.has(r.external_id));
   if (toInsert.length === 0) return 0;
   const { error } = await supabase.from("expense_entries").insert(toInsert);
   if (error) throw error;
@@ -535,9 +555,10 @@ export async function bulkInsertExpenses(rows: ExpenseEntryInsert[]): Promise<nu
 
 export async function bulkInsertIncomes(rows: IncomeEntryInsert[]): Promise<number> {
   if (rows.length === 0) return 0;
-  const ids = rows.map(r => r.external_id).filter((x): x is string => !!x);
+  const validated = rows.map((r) => parseOrThrow(IncomeEntryInsertSchema, r));
+  const ids = validated.map(r => r.external_id).filter((x): x is string => !!x);
   const existing = await existingExternalIds("income_entries", ids);
-  const toInsert = rows.filter(r => !r.external_id || !existing.has(r.external_id));
+  const toInsert = validated.filter(r => !r.external_id || !existing.has(r.external_id));
   if (toInsert.length === 0) return 0;
   const { error } = await supabase.from("income_entries").insert(toInsert);
   if (error) throw error;

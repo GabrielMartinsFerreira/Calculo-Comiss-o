@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase-server";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getStripe } from "@/lib/stripe";
+import { rateLimit, clientIp } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -9,7 +10,11 @@ export const runtime = "nodejs";
  * Abre o Customer Portal da Stripe (cancelar, trocar cartão, ver faturas).
  * Usado pelo botão "Gerir cobrança" quando a assinatura está ativa.
  */
-export async function POST() {
+export async function POST(request: Request) {
+  if (!(await rateLimit(`portal:${clientIp(request)}`))) {
+    return NextResponse.json({ error: "Muitas tentativas. Aguarde um momento." }, { status: 429 });
+  }
+
   const supabase = await createSupabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
@@ -32,7 +37,7 @@ export async function POST() {
 
     return NextResponse.json({ url: portal.url });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Erro ao abrir portal";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error("[api/portal]", err);
+    return NextResponse.json({ error: "Não foi possível abrir o portal. Tente novamente." }, { status: 500 });
   }
 }

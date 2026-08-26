@@ -15,7 +15,8 @@ export async function createSupabaseServer() {
         setAll(cookiesToSet) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
+              // Força Secure em produção e SameSite=strict — ver mesma nota em supabase-middleware.ts.
+              cookieStore.set(name, value, { ...options, secure: process.env.NODE_ENV === "production", sameSite: "strict" })
             );
           } catch {
             // setAll em Server Components de leitura — ignorar

@@ -740,3 +740,35 @@ npm run cap:sync
 npm run cap:open  # abre Android Studio para gerar novo APK
 ```
 Mudanças de UI/lógica **não** requerem rebuild — deploy na Vercel é suficiente.
+
+# Security & Pre-Launch Hardening Protocol
+
+Ao receber a instrução de auditoria pré-lançamento, execute uma varredura rigorosa no código e implemente as correções necessárias seguindo estas 20 diretrizes:
+
+## 1. Gestão de Credenciais e Repositório
+* **1. Esconder API Keys:** Mover chaves sensíveis para `.env`. Garantir que `.env` esteja no `.gitignore` e que exista um `.env.example` sem valores reais.
+* **2. Limpar Secrets do Git:** Verificar o histórico de commits e staged files para garantir que nenhuma chave privada, token ou senha foi comitada.
+* **3. Public Key DB:** Verificar chaves expostas em clientes frontend; garantir que chaves de banco de dados no frontend possuam permissões estritamente anônimas/públicas e nunca permissões de serviço (`service_role`).
+* **4. Ativar RLS (Row Level Security):** Garantir que todas as tabelas no banco de dados possuam RLS ativo com políticas explícitas de leitura, inserção, atualização e exclusão (`SELECT`, `INSERT`, `UPDATE`, `DELETE`).
+
+## 2. Autenticação e Acesso
+* **5. Criptografia de Dados:** Implementar criptografia em repouso para campos sensíveis (PII, tokens) e em trânsito.
+* **6. Auth Server-Side:** Validar sessões e tokens JWT estritamente no backend/middleware (Edge/Server Components/Express/Fastify), sem confiar no estado local do cliente.
+* **7. Restringir Acessos (RBAC):** Implementar e auditar controle de acesso baseado em cargos/papéis para rotas administrativas e recursos privados.
+* **8. Bloquear Mass Assignment:** Usar DTOs, esquemas estritos ou pick lists de campos permitidos antes de persistir dados no banco.
+* **9. Proteger Cookies:** Configurar cookies de sessão com `HttpOnly`, `Secure`, `SameSite=Lax` (ou `Strict`) e `Domain` restrito.
+* **10. Hash nas Senhas:** Garantir uso de algoritmos seguros e lentos (Argon2id ou Bcrypt com custo >= 10/12) para credenciais manuais.
+
+## 3. Defesa de Tráfego e Dados
+* **11. Rate Limit:** Aplicar limitadores de requisições (por IP/Token) em rotas críticas (auth, login, APIs públicas).
+* **12. Bot Protection:** Validar CAPTCHAs, Honeypots ou WAF checks em formulários públicos e endpoints de cadastro.
+* **13. Queries Parametrizadas:** Eliminar concatenação de strings em queries SQL/ORM para prevenção total contra SQL Injection.
+* **14. Validação de Inputs:** Aplicar validação estrita e parsing com schemas (ex.: Zod, Yup, Joi) em todas as entradas de requisições.
+* **15. Prevenção de Vazamento de Conteúdo:** Garantir que rotas estáticas privadas e buckets de storage não possuam URLs abertas ou listagem de diretórios pública.
+
+## 4. Infraestrutura e Dependências
+* **16. Restringir Uploads:** Validar MIME types reais (magic numbers), sanitizar nomes de arquivos, impor limite de tamanho (max payload) e salvar em storage isolado.
+* **17. Trim de Respostas de API:** Sanitizar saídas de API para nunca expor senhas com hash, chaves internas, IDs sequenciais desnecessários ou stack traces.
+* **18. Add Security Headers:** Configurar headers essenciais via middleware (`Content-Security-Policy`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`).
+* **19. Forçar HTTPS:** Redirecionar todo tráfego HTTP para HTTPS e incluir cabeçalho `Strict-Transport-Security` (HSTS).
+* **20. Scam de Dependências & Auditoria:** Rodar checagem de vulnerabilidades no gerenciador de pacotes (`npm audit`, `pnpm audit` ou `yarn audit`), remover dependências não utilizadas e fixar versões de pacotes confiáveis.

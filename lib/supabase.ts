@@ -1,5 +1,6 @@
 import { createBrowserClient } from "@supabase/ssr";
 import type { ServiceOrder, ServiceOrderInsert, ServiceOrderUpdate } from "./types";
+import { ServiceOrderInsertSchema, ServiceOrderUpdateSchema, parseOrThrow } from "./schemas";
 
 // Trim defende contra espaços/quebras de linha coladas por engano no painel do Vercel
 const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim();
@@ -12,9 +13,14 @@ export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
 export async function signIn(
   email: string,
   password: string,
-  rememberMe: boolean
+  rememberMe: boolean,
+  captchaToken?: string
 ): Promise<void> {
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+    options: captchaToken ? { captchaToken } : undefined,
+  });
   if (error) throw error;
 
   // "Lembrar-me": localStorage persiste entre sessões do browser
@@ -32,12 +38,13 @@ export async function signUp(
   email: string,
   password: string,
   fullName: string,
-  rememberMe: boolean
+  rememberMe: boolean,
+  captchaToken?: string
 ): Promise<{ needsConfirmation: boolean }> {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { full_name: fullName } }, // vai para user_metadata
+    options: { data: { full_name: fullName }, ...(captchaToken ? { captchaToken } : {}) }, // full_name vai para user_metadata
   });
   if (error) throw error;
 
@@ -85,9 +92,10 @@ export async function getOrders(competencia?: string): Promise<ServiceOrder[]> {
 }
 
 export async function createOrder(order: ServiceOrderInsert): Promise<ServiceOrder> {
+  const validated = parseOrThrow(ServiceOrderInsertSchema, order);
   const { data, error } = await supabase
     .from("service_orders")
-    .insert(order)
+    .insert(validated)
     .select()
     .single();
   if (error) throw error;
@@ -95,9 +103,10 @@ export async function createOrder(order: ServiceOrderInsert): Promise<ServiceOrd
 }
 
 export async function updateOrder(id: string, updates: ServiceOrderUpdate): Promise<ServiceOrder> {
+  const validated = parseOrThrow(ServiceOrderUpdateSchema, updates);
   const { data, error } = await supabase
     .from("service_orders")
-    .update(updates)
+    .update(validated)
     .eq("id", id)
     .select()
     .single();

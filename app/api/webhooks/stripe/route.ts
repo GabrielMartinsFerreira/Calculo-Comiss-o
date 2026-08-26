@@ -99,8 +99,8 @@ export async function POST(req: Request) {
         break; // outros eventos: ignorados de propósito
     }
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "erro ao processar evento";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error("[api/webhooks/stripe]", err);
+    return NextResponse.json({ error: "erro ao processar evento" }, { status: 500 });
   }
 
   return NextResponse.json({ received: true });

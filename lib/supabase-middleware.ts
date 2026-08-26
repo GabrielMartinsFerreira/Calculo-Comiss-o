@@ -19,8 +19,12 @@ export function createMiddlewareClient(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) => {
+            // Força Secure em produção e SameSite=strict — o default do
+            // @supabase/ssr é lax/sem secure. strict é seguro aqui porque
+            // não há fluxo de OAuth com redirect de terceiro (só email/senha).
+            const hardened = { ...options, secure: process.env.NODE_ENV === "production", sameSite: "strict" as const };
             request.cookies.set(name, value);
-            response.cookies.set(name, value, options);
+            response.cookies.set(name, value, hardened);
           });
         },
       },

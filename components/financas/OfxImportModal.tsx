@@ -20,6 +20,8 @@ interface OfxImportModalProps {
 
 type Target = "expense" | "income" | "both";
 
+const MAX_OFX_SIZE = 5 * 1024 * 1024; // 5MB — extratos OFX normais têm poucos KB
+
 export function OfxImportModal({ open, onOpenChange, creditCards, onSuccess }: OfxImportModalProps) {
   const [result, setResult] = useState<OfxParseResult | null>(null);
   const [fileName, setFileName] = useState("");
@@ -36,6 +38,11 @@ export function OfxImportModal({ open, onOpenChange, creditCards, onSuccess }: O
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > MAX_OFX_SIZE) {
+      toast({ title: "Arquivo muito grande", description: "O limite é 5MB.", variant: "destructive" });
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
     setFileName(file.name);
     try {
       const text = await file.text();

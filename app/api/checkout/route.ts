@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase-server";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getStripe, STRIPE_PRICE_ID } from "@/lib/stripe";
+import { rateLimit, clientIp } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -10,7 +11,11 @@ export const runtime = "nodejs";
  * Reutiliza (ou cria) o customer Stripe do utilizador e grava o user_id
  * em metadata/client_reference_id para o webhook conseguir reconciliar.
  */
-export async function POST() {
+export async function POST(request: Request) {
+  if (!(await rateLimit(`checkout:${clientIp(request)}`))) {
+    return NextResponse.json({ error: "Muitas tentativas. Aguarde um momento." }, { status: 429 });
+  }
+
   const supabase = await createSupabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
@@ -52,7 +57,7 @@ export async function POST() {
 
     return NextResponse.json({ url: session.url });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Erro ao criar checkout";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error("[api/checkout]", err);
+    return NextResponse.json({ error: "Não foi possível iniciar o checkout. Tente novamente." }, { status: 500 });
   }
 }

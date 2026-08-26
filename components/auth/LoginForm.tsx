@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signIn, signUp } from "@/lib/supabase";
 import { toast } from "@/lib/use-toast";
+import { TurnstileWidget, TURNSTILE_ENABLED } from "./TurnstileWidget";
 
 export function LoginForm() {
   const router = useRouter();
@@ -19,20 +20,28 @@ export function LoginForm() {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [website, setWebsite] = useState(""); // honeypot — humano nunca preenche
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
 
   const isSignup = mode === "signup";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (website) return; // bot preencheu o campo-armadilha — descarta silenciosamente
     if (!email.trim() || !password) return;
     if (isSignup && !fullName.trim()) {
       toast({ title: "Informe o seu nome completo", variant: "destructive" });
       return;
     }
+    if (TURNSTILE_ENABLED && !captchaToken) {
+      toast({ title: "Complete a verificação anti-bot", variant: "destructive" });
+      return;
+    }
     setLoading(true);
     try {
       if (isSignup) {
-        const { needsConfirmation } = await signUp(email.trim(), password, fullName.trim(), rememberMe);
+        const { needsConfirmation } = await signUp(email.trim(), password, fullName.trim(), rememberMe, captchaToken ?? undefined);
         if (needsConfirmation) {
           toast({
             title: "Conta criada!",
@@ -46,7 +55,7 @@ export function LoginForm() {
           router.refresh();
         }
       } else {
-        await signIn(email.trim(), password, rememberMe);
+        await signIn(email.trim(), password, rememberMe, captchaToken ?? undefined);
         router.push("/");
         router.refresh();
       }
@@ -54,6 +63,9 @@ export function LoginForm() {
       const fallback = isSignup ? "Não foi possível criar a conta" : "Credenciais inválidas";
       const msg = err instanceof Error ? err.message : fallback;
       toast({ title: isSignup ? "Falha no cadastro" : "Falha no login", description: msg, variant: "destructive" });
+      // Token do Turnstile é de uso único — remonta o widget para gerar outro.
+      setCaptchaToken(null);
+      setTurnstileResetKey((k) => k + 1);
     } finally {
       setLoading(false);
     }
@@ -89,6 +101,18 @@ export function LoginForm() {
       {/* Card */}
       <div className="rounded-xl border border-zinc-800/60 bg-[rgba(22,27,38,0.8)] backdrop-blur-sm p-8 shadow-2xl">
         <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Honeypot anti-bot: campo invisível para humanos, atrativo para bots */}
+          <input
+            type="text"
+            name="website"
+            value={website}
+            onChange={e => setWebsite(e.target.value)}
+            tabIndex={-1}
+            autoComplete="off"
+            aria-hidden="true"
+            className="absolute left-[-9999px] top-auto h-0 w-0 overflow-hidden opacity-0"
+          />
+
           {/* Nome Completo (apenas no cadastro) */}
           {isSignup && (
             <div className="space-y-1.5">
@@ -183,6 +207,9 @@ export function LoginForm() {
             </span>
           </div>
 
+          {/* Verificação anti-bot (Turnstile) — invisível se não configurada */}
+          <TurnstileWidget onToken={setCaptchaToken} resetKey={`${mode}-${turnstileResetKey}`} />
+
           {/* Submit */}
           <Button
             type="submit"
@@ -205,7 +232,7 @@ export function LoginForm() {
           {isSignup ? "Já tem conta?" : "Não tem conta?"}{" "}
           <button
             type="button"
-            onClick={() => { setMode(isSignup ? "signin" : "signup"); setPassword(""); }}
+            onClick={() => { setMode(isSignup ? "signin" : "signup"); setPassword(""); setCaptchaToken(null); }}
             className="font-medium text-cyan-400 hover:text-cyan-300 transition-colors"
           >
             {isSignup ? "Entrar" : "Criar conta"}
